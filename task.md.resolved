@@ -1,0 +1,46 @@
+# LinkMyStore Platform Overhaul — Stan.Store-Level Features
+
+## Phase 1: Quick Wins & UI Fixes (Current Session)
+- [ ] Remove Danger Zone from Settings
+- [ ] Fix Store Logo visibility on landing page
+- [ ] Add separate Bank Account / UPI sidebar button in dashboard
+- [ ] Revamp onboarding flow (Slug → Full Name → Mobile → Product Type Selection screen)
+- [ ] Add product stock/quantity management
+- [ ] Add product visibility toggle (show/hide from store)
+- [ ] Display shareable links on products list page
+- [ ] Add "low stock" indicator on storefront (≤5 left)
+
+## Phase 2: Enhanced Physical Products
+- [ ] AI-generated product description from uploaded images
+- [ ] Auto-categorization via AI based on title/description
+- [ ] Stock management with auto-decrement on order
+- [ ] Star rating & review system (customer-facing)
+- [ ] Display reviews/ratings on storefront product pages
+
+## Phase 3: Digital Product Categories (Stan.Store Feature Parity)
+- [ ] Digital Downloads (PDF, templates, presets, etc.)
+- [ ] 1-on-1 Coaching / Counselling with calendar booking
+- [ ] Online Courses (modules + lessons)
+- [ ] Lead Magnets (free downloads for email capture)
+- [ ] Calendar Invite & Booking system
+- [ ] Social Media Template Library
+- [ ] Memberships / Subscriptions
+
+## Phase 4: Premium Dashboard & Analytics
+- [ ] Revenue charts (daily/weekly/monthly)
+- [ ] Conversion rate analytics
+- [ ] Top-selling products
+- [ ] Customer demographics
+- [ ] Traffic sources
+- [ ] Animated stat counters
+
+## Phase 5: Storefront Premium Redesign
+- [ ] Premium mobile-first storefront with rich design
+- [ ] Product categories/tabs on storefront
+- [ ] Social proof elements (reviews, trust badges)
+- [ ] Smooth animations and micro-interactions
+
+## Phase 6: Advanced Features
+- [ ] Instagram Auto-DMs
+- [ ] Sharable product links for each product
+- [ ] Discount codes / coupons
