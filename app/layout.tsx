@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Plus_Jakarta_Sans, DM_Serif_Display } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -49,6 +50,7 @@ export default function RootLayout({
             },
           }}
         />
+        <SpeedInsights />
       </body>
     </html>
   )
