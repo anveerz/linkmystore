@@ -6,6 +6,7 @@ import { Search, ShoppingBag } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { formatPrice } from '@/lib/constants'
+import { isUpiPaymentConfirmed, isUpiPendingVerification } from '@/lib/payment-status'
 import { timeAgo } from '@/lib/utils'
 import type { Order, Product } from '@/types'
 
@@ -17,7 +18,9 @@ export default function OrdersPage() {
   const supabase = useMemo(() => createClient(), [])
   const [orders, setOrders] = useState<OrderWithProduct[]>([])
   const [loading, setLoading] = useState(true)
-  const [filterStatus, setFilterStatus] = useState<'all' | 'new' | 'shipped' | 'delivered' | 'cancelled'>('all')
+  const [filterStatus, setFilterStatus] = useState<
+    'all' | 'new' | 'shipped' | 'delivered' | 'cancelled' | 'pending_verification' | 'verified'
+  >('all')
   const [searchQuery, setSearchQuery] = useState('')
 
   const fetchOrders = useCallback(async () => {
@@ -77,7 +80,11 @@ export default function OrdersPage() {
   // Filter orders
   const filteredOrders = orders.filter(order => {
     // Status filter
-    if (filterStatus !== 'all' && order.status !== filterStatus) {
+    if (filterStatus === 'pending_verification') {
+      if (!isUpiPendingVerification(order)) return false
+    } else if (filterStatus === 'verified') {
+      if (!isUpiPaymentConfirmed(order)) return false
+    } else if (filterStatus !== 'all' && order.status !== filterStatus) {
       return false
     }
 
@@ -101,10 +108,14 @@ export default function OrdersPage() {
     shipped: orders.filter(o => o.status === 'shipped').length,
     delivered: orders.filter(o => o.status === 'delivered').length,
     cancelled: orders.filter(o => o.status === 'cancelled').length,
+    pending_verification: orders.filter(o => isUpiPendingVerification(o)).length,
+    verified: orders.filter(o => isUpiPaymentConfirmed(o)).length,
   }
 
   const statusTabs: Array<{ key: typeof filterStatus; label: string }> = [
     { key: 'all', label: 'All' },
+    { key: 'pending_verification', label: 'Pending Verify' },
+    { key: 'verified', label: 'Verified' },
     { key: 'new', label: 'New' },
     { key: 'shipped', label: 'Shipped' },
     { key: 'delivered', label: 'Delivered' },
@@ -177,15 +188,28 @@ export default function OrdersPage() {
             >
               <div className="flex items-center justify-between">
                 <p className="text-xs font-mono text-gray-400">{order.order_number}</p>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${order.status === 'new' ? 'bg-yellow-100 text-yellow-700' :
-                    order.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
-                      order.status === 'delivered' ? 'bg-green-100 text-green-700' :
-                        'bg-red-100 text-red-700'
-                  }`}>
-                  {order.status === 'new' ? 'New' :
-                    order.status === 'shipped' ? 'Shipped' :
-                      order.status === 'delivered' ? 'Delivered' : 'Cancelled'}
-                </span>
+                <div className="flex items-center gap-2">
+                  {order.payment_method === 'upi_direct' && (
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full ${
+                        isUpiPaymentConfirmed(order)
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-orange-100 text-orange-700'
+                      }`}
+                    >
+                      {isUpiPaymentConfirmed(order) ? 'UPI Verified' : 'UPI Pending'}
+                    </span>
+                  )}
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${order.status === 'new' ? 'bg-yellow-100 text-yellow-700' :
+                      order.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
+                        order.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                          'bg-red-100 text-red-700'
+                    }`}>
+                    {order.status === 'new' ? 'New' :
+                      order.status === 'shipped' ? 'Shipped' :
+                        order.status === 'delivered' ? 'Delivered' : 'Cancelled'}
+                  </span>
+                </div>
               </div>
 
               <div className="flex items-center gap-4 mt-3">
@@ -211,6 +235,11 @@ export default function OrdersPage() {
                     <p className="text-xs text-gray-500">{order.variant.name}</p>
                   )}
                   <p className="text-xs text-gray-400">by {order.buyer_name}</p>
+                  {order.payment_method === 'upi_direct' && order.upi_reference_number && (
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      UPI Ref: <span className="font-mono">{order.upi_reference_number}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 

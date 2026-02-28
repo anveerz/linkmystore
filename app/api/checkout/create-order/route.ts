@@ -49,6 +49,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
+    if (product.is_affiliate) {
+      return NextResponse.json(
+        { error: 'Affiliate products redirect to partner platforms for purchase' },
+        { status: 400 }
+      )
+    }
+
     let baseAmount = product.price
     if (product.variants && product.variants[variant_index]?.price) {
       baseAmount = product.variants[variant_index].price

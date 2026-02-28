@@ -17,11 +17,12 @@ interface RazorpayErrorResponse {
 
 interface RazorpayOptions {
   key: string
-  amount: number
-  currency: string
+  amount?: number
+  currency?: string
   name: string
   description: string
-  order_id: string
+  order_id?: string
+  subscription_id?: string
   prefill?: {
     name?: string
     contact?: string

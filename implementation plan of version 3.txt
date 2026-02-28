@@ -1,0 +1,381 @@
+Here's a quick summary of the 5 phases:
+
+Phase 1 — Free vs Pro Plans (₹199/mo): Foundation for everything. New subscriptions table, plan-gating utility, Razorpay subscription billing, feature limits (5 products free, unlimited pro), branding control, analytics tiers.
+
+Phase 2 — UPI Direct Payments: Replace Razorpay for product purchases with direct UPI deep links (upi://pay?pa=...). Buyer enters UPI reference number or uploads screenshot. Seller manually verifies. Platform never touches money.
+
+Phase 3 — Revised Onboarding: Expand from 2 steps to 5 (store setup → category/bio → UPI ID → first product → policies/go live). Collect only name, phone, UPI ID — no PAN/GST/bank account.
+
+Phase 4 — Affiliate Store: Sellers paste Amazon/Flipkart URLs → system auto-injects affiliate tags with sub-tracking. Commission split: 50/50 free, 100% pro. Click tracking, earnings dashboard, monthly payouts.
+
+Phase 5 — WhatsApp Notifications: Pro-only order notifications via WhatsApp Business API or third-party service.
+
+Claude’s Plan
+LinkMyStore — Business Model Implementation Plan
+Context
+The LinkMyStore platform is a mature Next.js app (Supabase + Razorpay + TailwindCSS) that already has: auth, product management (physical + 8 digital subtypes), storefront, Razorpay checkout, orders, dashboard, analytics, coupons, bookings, courses, reviews, Instagram automation, and payouts.
+
+The business model document introduces 4 major new capabilities that transform LinkMyStore from a single-tier platform into a freemium business with direct UPI payments and affiliate monetization. This plan implements them in dependency order.
+
+Phase 1: Free vs Pro Plan System (₹199/month)
+Priority: HIGHEST — Everything else depends on this
+
+This is the foundation. Feature-gating, branding, analytics tiers, and affiliate splits all depend on knowing the seller's plan.
+
+1.1 Database Changes
+New table: subscriptions
+
+
+CREATE TABLE subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_id UUID REFERENCES creators(id) ON DELETE CASCADE,
+  plan TEXT NOT NULL DEFAULT 'free' CHECK (plan IN ('free', 'pro')),
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'cancelled', 'expired', 'past_due')),
+  razorpay_subscription_id TEXT,
+  razorpay_plan_id TEXT,
+  current_period_start TIMESTAMPTZ,
+  current_period_end TIMESTAMPTZ,
+  cancelled_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(creator_id)
+);
+Alter creators table:
+
+Add column plan TEXT NOT NULL DEFAULT 'free' (denormalized for fast lookups)
+Alter store_settings table:
+
+Add column show_branding BOOLEAN DEFAULT true (Pro = false)
+Add column seo_enabled BOOLEAN DEFAULT false (Pro = true)
+1.2 Constants & Config
+File: lib/constants.ts
+
+Change FREE_PRODUCT_LIMIT from 10 → 5
+Add PRO_PLAN_PRICE = 19900 (₹199 in paisa)
+Add PRO_PLAN_RAZORPAY_ID env variable reference
+Add plan feature config object:
+
+export const PLAN_FEATURES = {
+  free: {
+    maxProducts: 5,
+    maxCategories: 1,
+    themes: ['default'],
+    analytics: 'basic',         // total views only
+    notifications: ['email'],
+    seoEnabled: false,
+    showBranding: true,
+    affiliateCommissionSplit: 0.5, // 50% to platform
+  },
+  pro: {
+    maxProducts: Infinity,
+    maxCategories: Infinity,
+    themes: ['default', 'minimal', 'bold', 'elegant', 'dark'],
+    analytics: 'full',
+    notifications: ['email', 'whatsapp'],
+    seoEnabled: true,
+    showBranding: false,
+    affiliateCommissionSplit: 1.0, // 100% to seller
+  },
+}
+1.3 API Routes
+POST /api/subscriptions/create — Create Razorpay subscription for Pro plan
+POST /api/subscriptions/verify — Verify Razorpay subscription payment, update creator plan
+POST /api/subscriptions/webhook — Razorpay webhook for subscription events (renewal, cancellation, failure)
+GET /api/subscriptions/status — Get current plan status for logged-in creator
+POST /api/subscriptions/cancel — Cancel Pro subscription
+1.4 Plan Gate Utility
+New file: lib/plan-gate.ts
+
+getCreatorPlan(creatorId) — fetch plan from creators table
+canAddProduct(creatorId) — check product count vs plan limit
+canUseTheme(creatorId, theme) — check theme access
+canUseFeature(creatorId, feature) — generic feature check
+Used in API routes and server components to enforce limits
+1.5 UI Changes
+Dashboard sidebar: Show current plan badge (Free/Pro)
+Dashboard settings page: Add "Plan & Billing" section with upgrade CTA
+New page: /dashboard/plan — Plan comparison, upgrade/downgrade, billing history
+Product creation: Show limit warning on free plan (X/5 products used), block creation at limit
+Storefront: Conditionally show/hide "Powered by Link My Store" based on plan
+Theme selector: Lock premium themes for free plan with upgrade prompt
+Analytics dashboard: Show limited stats for free, full for pro
+1.6 Files to Modify
+lib/constants.ts — Add plan constants
+types/index.ts — Add Subscription type, update Creator type
+app/(dashboard)/dashboard/products/new/page.tsx — Add product limit check
+app/(dashboard)/dashboard/settings/page.tsx — Add plan section
+components/storefront/StorefrontClient.tsx — Conditional branding
+app/(dashboard)/dashboard/page.tsx — Analytics tier gating
+middleware.ts — No changes needed (plan check happens at API/component level)
+Phase 2: UPI Direct Payment Flow
+Priority: HIGH — Core payment method for product purchases
+
+Replace/supplement Razorpay with direct UPI payments for product purchases. Keep Razorpay ONLY for Pro plan subscription billing.
+
+2.1 Database Changes
+Alter orders table:
+
+Add payment_method TEXT DEFAULT 'razorpay' CHECK (payment_method IN ('razorpay', 'upi_direct'))
+Add upi_reference_number TEXT — 12-digit UTR entered by buyer
+Add payment_screenshot_url TEXT — uploaded screenshot path
+Add payment_verified BOOLEAN DEFAULT false — seller manual verification flag
+Add payment_verified_at TIMESTAMPTZ
+Alter creators table:
+
+bank_account JSONB already has upi_id field — ensure it's prominently collected during onboarding
+2.2 UPI Deep Link Generation
+New file: lib/upi.ts
+
+
+export function generateUPILink(params: {
+  payeeVPA: string;       // seller's UPI ID
+  payeeName: string;      // seller's store name
+  amount: number;         // in rupees (not paisa)
+  transactionNote: string; // "Order-LMS-XXXX"
+  currency?: string;
+}): string {
+  return `upi://pay?pa=${encodeURIComponent(params.payeeVPA)}&pn=${encodeURIComponent(params.payeeName)}&am=${params.amount}&cu=${params.currency || 'INR'}&tn=${encodeURIComponent(params.transactionNote)}`
+}
+2.3 API Routes
+POST /api/checkout/create-upi-order — Create order with payment_status: 'pending', payment_method: 'upi_direct', return UPI deep link
+POST /api/checkout/confirm-upi — Buyer submits UPI reference number or uploads screenshot; updates order
+POST /api/orders/[id]/verify-payment — Seller verifies payment manually, marks order as confirmed
+POST /api/upload/payment-screenshot — Handle screenshot upload to Supabase Storage
+2.4 Checkout Flow UI
+Modify: app/[slug]/[productId]/checkout/page.tsx
+Replace/supplement the Razorpay checkout with:
+
+Order form (already exists): buyer name, phone, delivery address
+"Pay via UPI" button: Generates UPI deep link, opens UPI app on mobile
+Post-payment confirmation page:
+"Enter your UPI Reference Number" — text input for 12-digit UTR
+OR "Upload Payment Screenshot" — file upload
+Submit button to confirm
+Order confirmation page: "Your order has been placed! Seller will verify payment and process your order."
+2.5 Seller Dashboard Changes
+Modify: app/(dashboard)/dashboard/orders/page.tsx
+
+Add "Payment Verification" column for UPI orders
+Show UPI ref number and/or screenshot
+"Verify Payment" button → marks order as verified
+Filter orders by payment status (pending verification / verified)
+Modify: app/(dashboard)/dashboard/orders/[id]/page.tsx
+
+Show UPI reference number
+Show uploaded screenshot (if any)
+"Mark Payment Verified" action button
+2.6 Files to Modify
+types/index.ts — Update Order type with new fields
+app/[slug]/[productId]/checkout/ — Major rewrite for UPI flow
+app/(dashboard)/dashboard/orders/ — Add verification UI
+New: lib/upi.ts
+New: app/api/checkout/create-upi-order/route.ts
+New: app/api/checkout/confirm-upi/route.ts
+New: app/api/orders/[id]/verify-payment/route.ts
+Phase 3: Revised Onboarding Flow
+Priority: MEDIUM — Improves conversion but existing flow works
+
+Simplify onboarding to match the document's "under 5 minutes" goal. The current onboarding already has Step 1 (name, slug, mobile) and Step 2 (product type), but needs UPI ID collection and policy generation.
+
+3.1 Changes to Existing Onboarding
+File: app/(auth)/onboarding/page.tsx — Expand from 2 steps to 5 steps:
+
+Step 1: Sign Up (already handled by login page)
+
+Current: Google OAuth + Email — keep as-is
+Mobile number already collected in onboarding step 1
+Step 2: Create Store (modify existing step 1)
+
+Store name + auto-slug (already exists)
+Add: Category selector (Fashion / Art & Craft / Beauty / Food / Digital Products / Services / Other)
+Add: Profile photo/logo upload (optional)
+Add: Short bio / description textarea
+Add: Instagram handle (optional)
+Full name + mobile number (already exists)
+Step 3: Add Payment Details (NEW step)
+
+UPI ID input with validation (format: name@upi, phone@paytm, etc.)
+Explanation: "This is where buyers will pay you directly"
+Skip option: "I'll add this later"
+Step 4: Add First Product (modify existing step 2)
+
+Simplified product form:
+For OWN: photo, name, price, description (optional)
+For AFFILIATE: paste URL (Phase 4 feature — show as "coming soon" until Phase 4)
+Skip option: "I'll add products later"
+Step 5: Auto-generated Policies + Go Live
+
+Show auto-generated return/refund policy text
+Editable textarea for customization
+"Go Live" button → creates creator record, redirects to dashboard
+Show store link: linkmystore.in/your-store-name
+3.2 Database Changes
+Alter creators table:
+
+Add category TEXT (Fashion, Art & Craft, Beauty, Food, Digital Products, Services, Other)
+Add return_policy TEXT (auto-generated default text)
+Ensure bank_account->upi_id is populated from onboarding
+3.3 Files to Modify
+app/(auth)/onboarding/page.tsx — Major rewrite (2 → 5 steps)
+types/index.ts — Update Creator type with category, return_policy
+Phase 4: Affiliate Store Feature
+Priority: MEDIUM — Revenue driver but can launch without it
+
+Enable sellers to add affiliate products from Amazon, Flipkart, Myntra, Ajio, Nykaa.
+
+4.1 Database Changes
+Alter products table:
+
+Add is_affiliate BOOLEAN DEFAULT false
+Add affiliate_platform TEXT (amazon, flipkart, myntra, ajio, nykaa, meesho)
+Add affiliate_original_url TEXT — original URL pasted by seller
+Add affiliate_tagged_url TEXT — URL with platform's affiliate tag injected
+Add affiliate_product_data JSONB — auto-fetched metadata (title, image, price from external site)
+New table: affiliate_clicks
+
+
+CREATE TABLE affiliate_clicks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_id UUID REFERENCES creators(id),
+  product_id UUID REFERENCES products(id),
+  affiliate_platform TEXT NOT NULL,
+  visitor_id TEXT,
+  session_id TEXT,
+  clicked_at TIMESTAMPTZ DEFAULT now()
+);
+New table: affiliate_earnings
+
+
+CREATE TABLE affiliate_earnings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_id UUID REFERENCES creators(id),
+  affiliate_platform TEXT NOT NULL,
+  period_month TEXT NOT NULL,        -- '2026-03'
+  gross_commission INTEGER NOT NULL, -- in paisa
+  platform_share INTEGER NOT NULL,   -- in paisa (50% for free, 0% for pro)
+  creator_share INTEGER NOT NULL,    -- in paisa
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'paid')),
+  paid_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+4.2 Affiliate URL Processing
+New file: lib/affiliate.ts
+
+detectAffiliatePlatform(url) — Detect platform from URL domain
+injectAffiliateTag(url, platform, creatorId) — Add affiliate tracking:
+Amazon: ?tag=linkmystore-21&ascsubtag=seller123
+Flipkart: append &affid=linkmystore&SID=seller123
+Myntra/Ajio/Nykaa: via Cuelinks/EarnKaro deep links
+fetchProductMetadata(url) — Scrape/fetch product title, image, price from URL (best-effort, with fallback to manual entry)
+4.3 Affiliate Platform Config
+New file: lib/affiliate-config.ts
+
+
+export const AFFILIATE_PLATFORMS = {
+  amazon: {
+    name: 'Amazon',
+    tag: process.env.AMAZON_AFFILIATE_TAG,     // 'linkmystore-21'
+    subTagParam: 'ascsubtag',
+    domains: ['amazon.in', 'amzn.in'],
+    commissionRange: '1%-10%',
+  },
+  flipkart: {
+    name: 'Flipkart',
+    affiliateId: process.env.FLIPKART_AFFILIATE_ID,
+    subTagParam: 'SID',
+    domains: ['flipkart.com', 'fkrt.it'],
+    commissionRange: '1%-12%',
+  },
+  myntra: { name: 'Myntra', domains: ['myntra.com'], commissionRange: '2%-8%' },
+  ajio:   { name: 'Ajio', domains: ['ajio.com'], commissionRange: '3%-10%' },
+  nykaa:  { name: 'Nykaa', domains: ['nykaa.com'], commissionRange: '5%-15%' },
+  meesho: { name: 'Meesho', domains: ['meesho.com'], commissionRange: '1%-5%' },
+}
+4.4 API Routes
+POST /api/products/affiliate — Create affiliate product: validate URL, detect platform, inject tag, fetch metadata
+GET /api/affiliate/earnings — Get affiliate earnings dashboard data for creator
+POST /api/affiliate/track-click — Record affiliate link click (called when buyer clicks "Buy on Amazon")
+4.5 UI Changes
+Product Creation — Add "Affiliate Product" option:
+
+New tab/toggle in product creation: "Your Product" vs "Affiliate Product"
+Affiliate form: Paste URL → auto-detect platform → show preview (fetched image, title, price)
+Badge on product card: "Available on Amazon" / "Available on Flipkart"
+Storefront:
+
+Affiliate products show external platform badge
+"Buy on Amazon" / "Buy on Flipkart" button instead of "Buy Now"
+Clicking opens affiliate tagged URL in new tab
+Track click via /api/affiliate/track-click
+Dashboard — New page: /dashboard/affiliate
+
+Total clicks, estimated earnings, platform breakdown
+Commission split explanation (based on plan)
+Payout history and status
+Note about ~2 month delay (Amazon 60-day cycle)
+4.6 Files to Modify
+types/index.ts — Add affiliate fields to Product, new AffiliateClick and AffiliateEarning types
+app/(dashboard)/dashboard/products/new/page.tsx — Add affiliate product flow
+components/storefront/ProductCard.tsx — Affiliate badge and external link
+components/storefront/ProductDetailClient.tsx — "Buy on Amazon" button
+New: lib/affiliate.ts, lib/affiliate-config.ts
+New: app/api/products/affiliate/route.ts
+New: app/api/affiliate/earnings/route.ts
+New: app/api/affiliate/track-click/route.ts
+New: app/(dashboard)/dashboard/affiliate/page.tsx
+4.7 Environment Variables
+
+AMAZON_AFFILIATE_TAG=linkmystore-21
+FLIPKART_AFFILIATE_ID=linkmystore
+Phase 5: WhatsApp Notifications (Pro Feature)
+Priority: LOW — Nice-to-have, can use a 3rd party API
+
+Send order notifications to sellers via WhatsApp (Pro plan only).
+
+5.1 Integration Options
+WhatsApp Business API (official, requires Meta approval)
+Third-party: Twilio WhatsApp, Wati.io, or Interakt (easier setup)
+5.2 Implementation
+POST /api/notifications/send — Send notification via configured channel
+Add whatsapp_number field to creators table
+On new order: check seller plan → if Pro, send WhatsApp notification
+Notification content: "New order! Buyer: {name}, Amount: ₹{amount}, Ref: {upi_ref}"
+5.3 Files to Create
+lib/whatsapp.ts — WhatsApp API client
+app/api/notifications/send/route.ts
+Add notification trigger in order creation/verification flows
+Implementation Order Summary
+Phase	Feature	Estimated Scope	Depends On
+1	Free vs Pro Plans	~15 files, 1 migration	Nothing
+2	UPI Direct Payments	~10 files, 1 migration	Phase 1 (plan check for features)
+3	Revised Onboarding	~3 files, 1 migration	Phase 1 (plan assignment), Phase 2 (UPI ID collection)
+4	Affiliate Store	~12 files, 1 migration	Phase 1 (commission split by plan)
+5	WhatsApp Notifications	~4 files	Phase 1 (pro-only feature)
+Verification Plan
+Phase 1 Testing
+Create a new seller account → verify defaults to free plan
+Add 5 products → verify 6th is blocked on free plan
+Subscribe to Pro → verify Razorpay subscription flow works
+Verify theme restrictions lift on Pro
+Verify branding hides on Pro storefronts
+Verify analytics shows full data on Pro, basic on free
+Phase 2 Testing
+Visit a storefront → click "Buy Now" → verify UPI deep link opens
+Complete UPI payment → enter reference number → verify order created with pending status
+Upload screenshot instead → verify it's stored and visible to seller
+Seller dashboard → verify payment → confirm order status changes
+Test on mobile: UPI intent link should open GPay/PhonePe/Paytm
+Phase 3 Testing
+New user signup → go through 5-step onboarding
+Verify UPI ID is saved to creator profile
+Verify auto-generated policies appear on storefront
+Verify category is saved and reflected
+Phase 4 Testing
+Add affiliate product → paste Amazon URL → verify tag injection
+Visit storefront → click affiliate product → verify redirects to tagged URL
+Verify click is tracked in affiliate_clicks table
+Dashboard → verify affiliate earnings page shows data
+Verify commission split differs between free and pro sellers
+Phase 5 Testing
+Pro seller gets order → verify WhatsApp notification sent
+Free seller gets order → verify only email sent (no WhatsApp)	

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import {
   Activity,
@@ -25,6 +26,8 @@ import {
   Truck,
   Users,
   Wallet,
+  Crown,
+  Lock,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatPrice } from '@/lib/constants'
@@ -138,6 +141,7 @@ function DistributionList({
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
   const [creator, setCreator] = useState<Creator | null>(null)
   const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null)
@@ -229,6 +233,13 @@ export default function DashboardPage() {
     setCopied(true)
     toast.success('Store link copied')
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleProFeatureClick = (featureLabel: string) => {
+    const proceed = window.confirm(`${featureLabel} is available on Pro plan only. Upgrade now?`)
+    if (proceed) {
+      router.push('/dashboard/plan')
+    }
   }
 
   const series = useMemo(() => analytics?.revenueSeries[selectedRange] || [], [analytics, selectedRange])
@@ -585,6 +596,52 @@ export default function DashboardPage() {
               <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
             </div>
           </Link>
+
+          {creator?.plan !== 'pro' && (
+            <button
+              onClick={() => handleProFeatureClick('Advanced analytics')}
+              className="card-hover cursor-pointer group text-left w-full p-4 border border-dashed border-[#E8651A]/35"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#E8651A]/20 to-[#E8651A]/10 text-[#E8651A] flex items-center justify-center flex-shrink-0">
+                  <Crown className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm flex items-center gap-1.5">
+                    Advanced Analytics
+                    <span className="inline-flex items-center gap-1 text-[10px] rounded-full bg-[#E8651A]/10 px-1.5 py-0.5 text-[#E8651A]">
+                      <Lock className="w-2.5 h-2.5" /> PRO
+                    </span>
+                  </p>
+                  <p className="text-xs text-[#8E8E9F]">Unlock deep growth insights</p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#E8651A] group-hover:translate-x-1 transition-all" />
+              </div>
+            </button>
+          )}
+
+          {creator?.plan !== 'pro' && (
+            <button
+              onClick={() => handleProFeatureClick('WhatsApp order notifications')}
+              className="card-hover cursor-pointer group text-left w-full p-4 border border-dashed border-[#3D2176]/30"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#3D2176]/20 to-[#3D2176]/10 text-[#3D2176] flex items-center justify-center flex-shrink-0">
+                  <Crown className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm flex items-center gap-1.5">
+                    WhatsApp Order Alerts
+                    <span className="inline-flex items-center gap-1 text-[10px] rounded-full bg-[#3D2176]/10 px-1.5 py-0.5 text-[#3D2176]">
+                      <Lock className="w-2.5 h-2.5" /> PRO
+                    </span>
+                  </p>
+                  <p className="text-xs text-[#8E8E9F]">Get instant WhatsApp notifications</p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#3D2176] group-hover:translate-x-1 transition-all" />
+              </div>
+            </button>
+          )}
         </div>
 
         <div>

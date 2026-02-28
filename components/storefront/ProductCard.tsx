@@ -14,12 +14,14 @@ export function ProductCard({
   accentColor,
   priority = false,
 }: ProductCardProps) {
-  const { id, title, price, compare_price, images, type, average_rating, review_count } = product
+  const { id, title, price, compare_price, images, type, average_rating, review_count, is_affiliate, affiliate_platform } = product
 
   const hasRating = average_rating !== undefined && average_rating > 0
   const hasComparePrice = compare_price && compare_price > price
 
-  const ariaLabel = `Product: ${title}, Price: ${formatPrice(price)}`
+  const ariaLabel = is_affiliate
+    ? `Affiliate product: ${title}`
+    : `Product: ${title}, Price: ${formatPrice(price)}`
 
   return (
     <Link
@@ -44,6 +46,13 @@ export function ProductCard({
           </motion.div>
 
           <ProductBadge type={type} />
+          {is_affiliate && (
+            <span className="absolute left-2 top-2 rounded-full bg-black/75 px-2 py-0.5 text-[10px] font-medium text-white">
+              {affiliate_platform
+                ? `On ${affiliate_platform.charAt(0).toUpperCase()}${affiliate_platform.slice(1)}`
+                : 'Affiliate'}
+            </span>
+          )}
         </div>
 
         {/* Product Info */}

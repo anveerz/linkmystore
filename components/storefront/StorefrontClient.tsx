@@ -82,6 +82,20 @@ export function StorefrontClient({ creator, products, settings, stats }: Storefr
           )}
         </div>
       </main>
+
+      {/* Powered by branding — shown for free plan, hidden for pro */}
+      {(settings.show_branding !== false) && (
+        <footer className="py-6 text-center border-t border-gray-100">
+          <a
+            href="https://linkmystore.in"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-gray-400 hover:text-gray-500 transition-colors"
+          >
+            Powered by Link My Store
+          </a>
+        </footer>
+      )}
     </>
   )
 }

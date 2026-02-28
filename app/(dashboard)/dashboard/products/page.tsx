@@ -207,11 +207,14 @@ export default function ProductsPage() {
 
                     {/* Product Type Badge */}
                     <div className="absolute top-3 right-3">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full backdrop-blur-sm ${product.type === 'physical'
-                        ? 'bg-blue-500/90 text-white'
-                        : 'bg-purple-500/90 text-white'
+                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full backdrop-blur-sm ${
+                        product.is_affiliate
+                          ? 'bg-slate-800/90 text-white'
+                          : product.type === 'physical'
+                            ? 'bg-blue-500/90 text-white'
+                            : 'bg-purple-500/90 text-white'
                         }`}>
-                        {product.type === 'physical' ? '📦 Physical' : '⚡ Digital'}
+                        {product.is_affiliate ? 'Affiliate' : product.type === 'physical' ? 'Physical' : 'Digital'}
                       </span>
                     </div>
 
@@ -335,3 +338,4 @@ export default function ProductsPage() {
     </div>
   )
 }
+

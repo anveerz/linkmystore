@@ -15,10 +15,13 @@ import {
   FileDown,
   Truck,
   Copy,
-  MessageCircle
+  MessageCircle,
+  ShieldCheck,
+  ExternalLink,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatPrice } from '@/lib/constants'
+import { isUpiPaymentConfirmed, isUpiPendingVerification } from '@/lib/payment-status'
 import { timeAgo } from '@/lib/utils'
 import type { Order, Product } from '@/types'
 
@@ -31,6 +34,7 @@ export default function OrderDetailPage() {
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
+  const [verifyingPayment, setVerifyingPayment] = useState(false)
   const [showShippingForm, setShowShippingForm] = useState(false)
   const [trackingNumber, setTrackingNumber] = useState('')
   const [trackingUrl, setTrackingUrl] = useState('')
@@ -71,6 +75,10 @@ export default function OrderDetailPage() {
 
   const handleMarkShipped = async () => {
     if (!order) return
+    if (isUpiPendingVerification(order)) {
+      toast.error('Verify UPI payment before shipping this order')
+      return
+    }
     setUpdating(true)
 
     try {
@@ -121,6 +129,30 @@ export default function OrderDetailPage() {
       toast.error(message)
     } finally {
       setUpdating(false)
+    }
+  }
+
+  const handleVerifyUpiPayment = async () => {
+    if (!order || order.payment_method !== 'upi_direct' || isUpiPaymentConfirmed(order)) return
+
+    if (!confirm('Mark this UPI payment as verified?')) return
+
+    setVerifyingPayment(true)
+    try {
+      const response = await fetch(`/api/orders/${order.id}/verify-payment`, { method: 'POST' })
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to verify payment')
+      }
+
+      toast.success('Payment verified')
+      await fetchOrder()
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to verify payment'
+      toast.error(message)
+    } finally {
+      setVerifyingPayment(false)
     }
   }
 
@@ -223,11 +255,30 @@ export default function OrderDetailPage() {
             </div>
 
             {/* Action Buttons */}
+            {isUpiPendingVerification(order) && (
+              <div className="mt-6 rounded-xl border border-orange-200 bg-orange-50 p-4">
+                <p className="text-sm font-medium text-orange-800">
+                  UPI payment is pending verification.
+                </p>
+                <p className="text-xs text-orange-700 mt-1">
+                  Verify payment before shipping this order.
+                </p>
+                <button
+                  onClick={handleVerifyUpiPayment}
+                  disabled={verifyingPayment}
+                  className="btn-primary mt-3 flex items-center gap-2"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  {verifyingPayment ? 'Verifying...' : 'Mark Payment Verified'}
+                </button>
+              </div>
+            )}
+
             {order.status === 'new' && !showShippingForm && (
               <button
                 onClick={() => setShowShippingForm(true)}
                 className="btn-primary mt-6"
-                disabled={updating}
+                disabled={updating || isUpiPendingVerification(order)}
               >
                 Mark as Shipped
               </button>
@@ -323,12 +374,20 @@ export default function OrderDetailPage() {
           <div className="card">
             <h2 className="font-semibold mb-4">Payment</h2>
             <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">Method</span>
+                <span className="font-medium text-gray-700">
+                  {order.payment_method === 'upi_direct' ? 'Direct UPI' : 'Razorpay'}
+                </span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Amount Paid</span>
                 <span className="font-bold">{formatPrice(order.amount)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Platform Fee (4%)</span>
+                <span className="text-gray-500">
+                  {order.payment_method === 'upi_direct' ? 'Platform Fee' : 'Platform Fee (4%)'}
+                </span>
                 <span className="text-gray-500">{formatPrice(order.platform_fee)}</span>
               </div>
               <div className="h-px bg-gray-100 my-2" />
@@ -337,10 +396,32 @@ export default function OrderDetailPage() {
                 <span className="font-bold text-green-600">{formatPrice(order.amount - order.platform_fee)}</span>
               </div>
               <div className="h-px bg-gray-100 my-2" />
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Payment ID</span>
-                <span className="font-mono text-gray-400 text-xs">{order.razorpay_payment_id}</span>
-              </div>
+              {order.razorpay_payment_id && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">Payment ID</span>
+                  <span className="font-mono text-gray-400 text-xs">{order.razorpay_payment_id}</span>
+                </div>
+              )}
+              {order.upi_reference_number && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">UPI Reference</span>
+                  <span className="font-mono text-gray-500 text-xs">{order.upi_reference_number}</span>
+                </div>
+              )}
+              {order.payment_screenshot_url && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">Screenshot</span>
+                  <a
+                    href={order.payment_screenshot_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#E8651A] hover:underline inline-flex items-center gap-1"
+                  >
+                    View
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Status</span>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
@@ -348,6 +429,18 @@ export default function OrderDetailPage() {
                   {order.payment_status}
                 </span>
               </div>
+              {order.payment_method === 'upi_direct' && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">Verification</span>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full ${
+                      isUpiPaymentConfirmed(order) ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'
+                    }`}
+                  >
+                    {isUpiPaymentConfirmed(order) ? 'Verified' : 'Pending'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -472,6 +472,9 @@ export default async function ProductPage({
 
   const digitalSubtype = product.digital_subtype as DigitalSubtype | undefined
   const isLeadMagnet = !!(product.is_lead_magnet || digitalSubtype === 'lead_magnet')
+  const isAffiliate = Boolean(product.is_affiliate)
+  const affiliatePlatform = (product.affiliate_platform as string | undefined) || null
+  const affiliateTaggedUrl = (product.affiliate_tagged_url as string | undefined) || null
   const subtypeBadge = digitalSubtype ? SUBTYPE_BADGE[digitalSubtype] : null
 
   const courseData = product.course_data as CourseData | null
@@ -545,6 +548,11 @@ export default async function ProductPage({
             </>
           )}
         </div>
+        {isAffiliate && (
+          <p className="text-xs text-gray-500 mt-1">
+            This is an affiliate listing. You will be redirected to {affiliatePlatform || 'partner platform'} for purchase.
+          </p>
+        )}
 
         {/* Stock alerts (only for physical / non-digital) */}
         {hasLowStock && (
@@ -627,6 +635,9 @@ export default async function ProductPage({
         isOutOfStock={isOutOfStock}
         digitalSubtype={digitalSubtype}
         isLeadMagnet={isLeadMagnet}
+        isAffiliate={isAffiliate}
+        affiliatePlatform={affiliatePlatform}
+        affiliateTaggedUrl={affiliateTaggedUrl}
       />
 
       {/* ── Customer Reviews ── */}

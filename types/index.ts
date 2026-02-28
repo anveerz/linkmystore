@@ -11,8 +11,26 @@ export interface Creator {
   profile_image_url?: string;
   instagram_handle?: string;
   bank_account?: BankAccount;
+  plan: 'free' | 'pro';
+  category?: string;
+  return_policy?: string;
+  whatsapp_number?: string;
   is_active: boolean;
   created_at: string;
+}
+
+export interface Subscription {
+  id: string;
+  creator_id: string;
+  plan: 'free' | 'pro';
+  status: 'active' | 'cancelled' | 'expired' | 'past_due';
+  razorpay_subscription_id?: string;
+  razorpay_plan_id?: string;
+  current_period_start?: string;
+  current_period_end?: string;
+  cancelled_at?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface BankAccount {
@@ -55,6 +73,11 @@ export interface Product {
   average_rating?: number;          // Phase 5: from product_reviews trigger
   review_count?: number;
   total_sales?: number;             // Phase 5: incremented on paid orders
+  is_affiliate?: boolean;
+  affiliate_platform?: 'amazon' | 'flipkart' | 'myntra' | 'ajio' | 'nykaa' | 'meesho';
+  affiliate_original_url?: string;
+  affiliate_tagged_url?: string;
+  affiliate_product_data?: Record<string, unknown> | null;
 
   // Digital subtype-specific data (stored as JSONB)
   course_data?: CourseData;
@@ -222,7 +245,12 @@ export interface Order {
   platform_fee: number;      // In paisa
   razorpay_order_id?: string;
   razorpay_payment_id?: string;
+  payment_method: 'razorpay' | 'upi_direct';
   payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
+  upi_reference_number?: string;
+  payment_screenshot_url?: string;
+  payment_verified?: boolean;
+  payment_verified_at?: string;
   status: 'new' | 'shipped' | 'delivered' | 'cancelled';
   tracking_number?: string;
   tracking_url?: string;
@@ -250,6 +278,29 @@ export interface Payout {
   created_at: string;
 }
 
+export interface AffiliateClick {
+  id: string;
+  creator_id: string;
+  product_id: string;
+  affiliate_platform: 'amazon' | 'flipkart' | 'myntra' | 'ajio' | 'nykaa' | 'meesho';
+  visitor_id?: string | null;
+  session_id?: string | null;
+  clicked_at: string;
+}
+
+export interface AffiliateEarning {
+  id: string;
+  creator_id: string;
+  affiliate_platform: 'amazon' | 'flipkart' | 'myntra' | 'ajio' | 'nykaa' | 'meesho';
+  period_month: string;
+  gross_commission: number;
+  platform_share: number;
+  creator_share: number;
+  status: 'pending' | 'processing' | 'paid';
+  paid_at?: string | null;
+  created_at: string;
+}
+
 export interface StoreSettings {
   id: string;
   creator_id: string;
@@ -262,6 +313,8 @@ export interface StoreSettings {
     website?: string;
   };
   announcement_text?: string;
+  show_branding?: boolean;
+  seo_enabled?: boolean;
 }
 
 export interface DashboardStats {

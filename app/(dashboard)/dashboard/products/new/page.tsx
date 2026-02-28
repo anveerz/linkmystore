@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { MAX_IMAGES_PER_PRODUCT, MAX_IMAGE_SIZE_MB } from '@/lib/constants'
+import { MAX_IMAGES_PER_PRODUCT, MAX_IMAGE_SIZE_MB, FREE_PRODUCT_LIMIT, PLAN_FEATURES, formatPrice, PRO_PLAN_PRICE } from '@/lib/constants'
 import {
   ArrowLeft,
   Package,
@@ -17,6 +18,8 @@ import {
   Sparkles,
   Tag,
   ChevronDown,
+  Crown,
+  Lock,
 } from 'lucide-react'
 import type { Variant, DigitalSubtype, CourseModule, AvailabilitySlot, MeetingPlatform, MembershipData } from '@/types'
 import toast from 'react-hot-toast'
@@ -52,9 +55,14 @@ export default function AddProductPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [creatorId, setCreatorId] = useState<string | null>(null)
 
+  // Plan limit state
+  const [creatorPlan, setCreatorPlan] = useState<'free' | 'pro'>('free')
+  const [productCount, setProductCount] = useState(0)
+  const [limitReached, setLimitReached] = useState(false)
+
   // Product type
-  const [type, setType] = useState<'physical' | 'digital'>(
-    (searchParams.get('type') as 'physical' | 'digital') || 'physical'
+  const [type, setType] = useState<'physical' | 'digital' | 'affiliate'>(
+    (searchParams.get('type') as 'physical' | 'digital' | 'affiliate') || 'physical'
   )
   const [digitalSubtype, setDigitalSubtype] = useState<DigitalSubtype>('download')
 
@@ -100,12 +108,35 @@ export default function AddProductPage() {
   // Template library state
   const [templates, setTemplates] = useState<{ file: File; name: string; category: string }[]>([])
 
+  // Affiliate product state
+  const [affiliateUrl, setAffiliateUrl] = useState('')
+  const [affiliateTitle, setAffiliateTitle] = useState('')
+  const [affiliateDescription, setAffiliateDescription] = useState('')
+  const [affiliatePrice, setAffiliatePrice] = useState('')
+
   const fetchCreator = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
-      const { data: creator } = await supabase.from('creators').select('id').eq('user_id', user.id).single()
-      if (creator) setCreatorId(creator.id)
+      const { data: creator } = await supabase.from('creators').select('id, plan').eq('user_id', user.id).single()
+      if (creator) {
+        setCreatorId(creator.id)
+        const plan = (creator.plan as 'free' | 'pro') || 'free'
+        setCreatorPlan(plan)
+
+        // Check product count against limit
+        const { count } = await supabase
+          .from('products')
+          .select('*', { count: 'exact', head: true })
+          .eq('creator_id', creator.id)
+          .eq('is_active', true)
+          .or('is_affiliate.is.null,is_affiliate.eq.false')
+
+        const currentCount = count ?? 0
+        setProductCount(currentCount)
+        const maxProducts = PLAN_FEATURES[plan].maxProducts
+        setLimitReached(currentCount >= maxProducts)
+      }
     } catch (error) {
       console.error('Error fetching creator:', error)
       toast.error('Failed to load creator data')
@@ -136,6 +167,12 @@ export default function AddProductPage() {
 
     if (queryType === 'physical') {
       setType('physical')
+      setStep('form')
+      return
+    }
+
+    if (queryType === 'affiliate') {
+      setType('affiliate')
       setStep('form')
       return
     }
@@ -223,9 +260,9 @@ export default function AddProductPage() {
   }
 
   // --- Type selection handlers ---
-  const handleTypeSelect = (selectedType: 'physical' | 'digital') => {
+  const handleTypeSelect = (selectedType: 'physical' | 'digital' | 'affiliate') => {
     setType(selectedType)
-    if (selectedType === 'physical') {
+    if (selectedType === 'physical' || selectedType === 'affiliate') {
       setStep('form')
     }
   }
@@ -241,6 +278,47 @@ export default function AddProductPage() {
 
   // --- Submit ---
   const handleSubmit = async () => {
+    if (creatorPlan === 'free' && limitReached && type !== 'affiliate') {
+      toast.error('Free plan allows up to 5 own products. Upgrade to Pro for unlimited products.')
+      return
+    }
+
+    if (type === 'affiliate') {
+      if (!affiliateUrl.trim()) {
+        toast.error('Affiliate product URL is required')
+        return
+      }
+
+      setLoading(true)
+      try {
+        const response = await fetch('/api/products/affiliate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: affiliateUrl.trim(),
+            title: affiliateTitle.trim() || null,
+            description: affiliateDescription.trim() || null,
+            category: category.trim() || null,
+            price: affiliatePrice ? Number(affiliatePrice) : null,
+          }),
+        })
+
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to create affiliate product')
+        }
+
+        toast.success('Affiliate product added')
+        router.push('/dashboard/products')
+      } catch (error) {
+        console.error('Affiliate product create error:', error)
+        toast.error(error instanceof Error ? error.message : 'Failed to add affiliate product')
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
     if (!title.trim()) { toast.error('Product title is required'); return }
     if (!creatorId) { toast.error('Creator not found'); return }
 
@@ -413,6 +491,7 @@ export default function AddProductPage() {
     if (step === 'type') return 'Add Product'
     if (step === 'digital-subtype') return 'Choose Digital Product Type'
     if (type === 'physical') return 'Add Physical Product'
+    if (type === 'affiliate') return 'Add Affiliate Product'
     const subtypeLabels: Record<DigitalSubtype, string> = {
       download: 'Digital Download',
       course: 'Online Course',
@@ -429,7 +508,7 @@ export default function AddProductPage() {
   const handleBack = () => {
     if (step === 'form' && type === 'digital') setStep('digital-subtype')
     else if (step === 'digital-subtype') setStep('type')
-    else if (step === 'form' && type === 'physical') setStep('type')
+    else if (step === 'form' && (type === 'physical' || type === 'affiliate')) setStep('type')
     else router.push('/dashboard/products')
   }
 
@@ -446,13 +525,45 @@ export default function AddProductPage() {
         <h1 className="text-2xl font-bold text-[#1A1A2E]">{getStepTitle()}</h1>
       </div>
 
+      {/* Plan Limit Warning */}
+      {limitReached && creatorPlan === 'free' && (
+        <div className="card mb-6 border-2 border-orange-200 bg-orange-50/50 animate-in">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
+              <Lock className="w-5 h-5 text-orange-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-[#1A1A2E]">Product limit reached</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                You&apos;ve used all {FREE_PRODUCT_LIMIT} own product slots on the Free plan.
+                You can still add affiliate products, or upgrade to Pro for unlimited own products.
+              </p>
+              <Link href="/dashboard/plan"
+                className="inline-flex items-center gap-2 mt-3 bg-[#E8651A] text-white text-sm font-medium py-2 px-4 rounded-xl hover:bg-[#D55A15] transition-colors"
+              >
+                <Crown className="w-4 h-4" />
+                Upgrade to Pro — {formatPrice(PRO_PLAN_PRICE)}/mo
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Product count indicator for free plan */}
+      {!limitReached && creatorPlan === 'free' && (
+        <div className="text-sm text-gray-500 mb-4">
+          {productCount}/{FREE_PRODUCT_LIMIT} own products used on Free plan
+        </div>
+      )}
+
       {/* Step 1: Product Type */}
       {step === 'type' && (
         <div className="card animate-in">
           <h2 className="text-lg font-semibold mb-4">What are you selling?</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <button
               onClick={() => { handleTypeSelect('physical'); }}
+              disabled={limitReached && creatorPlan === 'free'}
               className={`cursor-pointer rounded-xl border-2 p-5 transition-all text-left ${type === 'physical' && step === 'type'
                 ? 'border-orange-500 bg-orange-50/50 shadow-sm'
                 : 'border-gray-200 hover:border-gray-300'
@@ -464,6 +575,7 @@ export default function AddProductPage() {
             </button>
             <button
               onClick={() => { setType('digital'); handleContinueToDigitalSubtype(); }}
+              disabled={limitReached && creatorPlan === 'free'}
               className={`cursor-pointer rounded-xl border-2 p-5 transition-all text-left ${type === 'digital'
                 ? 'border-orange-500 bg-orange-50/50 shadow-sm'
                 : 'border-gray-200 hover:border-gray-300'
@@ -472,6 +584,17 @@ export default function AddProductPage() {
               <FileDown className="w-8 h-8 mb-3 text-gray-700" />
               <div className="font-semibold text-sm">Digital Product</div>
               <div className="text-xs text-gray-500 mt-1">Courses, coaching, downloads...</div>
+            </button>
+            <button
+              onClick={() => { handleTypeSelect('affiliate') }}
+              className={`cursor-pointer rounded-xl border-2 p-5 transition-all text-left ${type === 'affiliate'
+                ? 'border-orange-500 bg-orange-50/50 shadow-sm'
+                : 'border-gray-200 hover:border-gray-300'
+                }`}
+            >
+              <FileDown className="w-8 h-8 mb-3 text-gray-700" />
+              <div className="font-semibold text-sm">Affiliate Product</div>
+              <div className="text-xs text-gray-500 mt-1">Amazon, Flipkart, and more</div>
             </button>
           </div>
         </div>
@@ -616,6 +739,63 @@ export default function AddProductPage() {
             </div>
           )}
 
+          {/* Affiliate Product Form */}
+          {type === 'affiliate' && (
+            <div className="space-y-6">
+              <div className="card animate-in">
+                <h2 className="text-lg font-semibold mb-4">Affiliate Product Details</h2>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">Product URL <span className="text-red-500">*</span></label>
+                  <input
+                    type="url"
+                    value={affiliateUrl}
+                    onChange={(e) => setAffiliateUrl(e.target.value)}
+                    placeholder="https://www.amazon.in/dp/..."
+                    className="input-field"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Paste an Amazon, Flipkart, Myntra, Ajio, Nykaa, or Meesho product URL.
+                  </p>
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-sm font-medium mb-1.5">Title (optional)</label>
+                  <input
+                    type="text"
+                    value={affiliateTitle}
+                    onChange={(e) => setAffiliateTitle(e.target.value)}
+                    placeholder="Product title (auto-fetched if blank)"
+                    className="input-field"
+                  />
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-sm font-medium mb-1.5">Price in INR (optional)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={affiliatePrice}
+                    onChange={(e) => setAffiliatePrice(e.target.value)}
+                    placeholder="799"
+                    className="input-field"
+                  />
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-sm font-medium mb-1.5">Description (optional)</label>
+                  <textarea
+                    value={affiliateDescription}
+                    onChange={(e) => setAffiliateDescription(e.target.value)}
+                    rows={4}
+                    placeholder="Short description for your storefront"
+                    className="input-field resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Digital Product Forms */}
           {type === 'digital' && digitalSubtype === 'download' && (
             <DownloadForm
@@ -735,20 +915,22 @@ export default function AddProductPage() {
           )}
 
           {/* Active Toggle */}
-          <div className="card mt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold">Product Status</h3>
-                <p className="text-sm text-gray-500">{isActive ? 'Visible on your store' : 'Hidden from your store'}</p>
+          {type !== 'affiliate' && (
+            <div className="card mt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold">Product Status</h3>
+                  <p className="text-sm text-gray-500">{isActive ? 'Visible on your store' : 'Hidden from your store'}</p>
+                </div>
+                <button
+                  onClick={() => setIsActive(!isActive)}
+                  className={`w-12 h-6 rounded-full transition-colors relative ${isActive ? 'bg-green-500' : 'bg-gray-300'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${isActive ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
               </div>
-              <button
-                onClick={() => setIsActive(!isActive)}
-                className={`w-12 h-6 rounded-full transition-colors relative ${isActive ? 'bg-green-500' : 'bg-gray-300'}`}
-              >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${isActive ? 'translate-x-6' : 'translate-x-0'}`} />
-              </button>
             </div>
-          </div>
+          )}
 
           {/* Submit */}
           <div className="flex items-center gap-4 mt-8">
@@ -762,3 +944,4 @@ export default function AddProductPage() {
     </div>
   )
 }
+

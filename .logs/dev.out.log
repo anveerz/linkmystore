@@ -1,0 +1,16 @@
+
+> linkmystore@0.1.0 dev D:\Anveeresh\linkmystore
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.137.1:3000
+- Environments: .env.local
+
+✓ Starting...
+Creating turbopack project { dir: 'D:\\Anveeresh\\linkmystore', testMode: true }
+✓ Ready in 4.2s
+○ Compiling /dashboard/plan ...
+ GET /dashboard/plan 200 in 5.9s (compile: 4.2s, proxy.ts: 1042ms, render: 646ms)
+ GET /api/subscriptions/status 200 in 2.3s (compile: 560ms, proxy.ts: 380ms, render: 1373ms)
+ GET /api/subscriptions/status 200 in 1927ms (compile: 16ms, proxy.ts: 361ms, render: 1551ms)

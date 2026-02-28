@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { PLATFORM_FEE_PERCENT } from '@/lib/constants'
+import { sendOrderNotificationIfEligible } from '@/lib/notifications'
 
 function isDuplicateOrderNumberError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
@@ -79,6 +80,13 @@ export async function POST(request: Request) {
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+    }
+
+    if (product.is_affiliate) {
+      return NextResponse.json(
+        { error: 'Affiliate products are purchased on partner platforms' },
+        { status: 400 }
+      )
     }
 
     const resolvedCreatorId = product.creator_id
@@ -390,6 +398,16 @@ export async function POST(request: Request) {
     }
 
     console.log(`NEW ORDER: ${order.order_number} for creator ${resolvedCreatorId} — ₹${amount / 100}`)
+
+    void sendOrderNotificationIfEligible({
+      creatorId: resolvedCreatorId,
+      orderNumber: order.order_number,
+      buyerName: buyer_name || 'Customer',
+      amountInPaisa: amount,
+      upiReference: null,
+    }).catch((error) => {
+      console.error('Razorpay order notification error:', error)
+    })
 
     // 10. RETURN SUCCESS with all relevant data
     return NextResponse.json({

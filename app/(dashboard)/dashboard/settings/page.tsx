@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   Store,
@@ -10,9 +12,12 @@ import {
   Save,
   Eye,
   EyeOff,
+  Lock,
+  Crown,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { Creator } from '@/types'
+import { PLAN_FEATURES } from '@/lib/constants'
 
 const THEMES = [
   { id: 'default', name: 'Default', bg: 'bg-white', accent: 'bg-[#E8651A]' },
@@ -23,6 +28,7 @@ const THEMES = [
 ]
 
 export default function SettingsPage() {
+  const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
   const [creator, setCreator] = useState<Creator | null>(null)
   const [loading, setLoading] = useState(true)
@@ -96,8 +102,10 @@ export default function SettingsPage() {
         if (settingsData.social_links) {
           setInstagram(settingsData.social_links.instagram || '')
           setYoutube(settingsData.social_links.youtube || '')
-          setWhatsapp(settingsData.social_links.whatsapp || '')
+          setWhatsapp(settingsData.social_links.whatsapp || creatorData.whatsapp_number || '')
           setWebsite(settingsData.social_links.website || '')
+        } else {
+          setWhatsapp(creatorData.whatsapp_number || '')
         }
       }
     } catch (error) {
@@ -110,6 +118,13 @@ export default function SettingsPage() {
   useEffect(() => {
     void fetchData()
   }, [fetchData])
+
+  const promptUpgrade = (featureName: string) => {
+    const proceed = window.confirm(`${featureName} is available on Pro plan only. Do you want to upgrade now?`)
+    if (proceed) {
+      router.push('/dashboard/plan')
+    }
+  }
 
   const saveStoreProfile = async () => {
     if (!creator) return
@@ -127,6 +142,16 @@ export default function SettingsPage() {
         .eq('id', creator.id)
 
       if (error) throw error
+
+      const { error: creatorUpdateError } = await supabase
+        .from('creators')
+        .update({
+          whatsapp_number: whatsapp.trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', creator.id)
+
+      if (creatorUpdateError) throw creatorUpdateError
 
       toast.success('Store profile updated! 🎉')
     } catch (error: unknown) {
@@ -190,6 +215,16 @@ export default function SettingsPage() {
 
       if (error) throw error
 
+      const { error: creatorUpdateError } = await supabase
+        .from('creators')
+        .update({
+          whatsapp_number: whatsapp.trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', creator.id)
+
+      if (creatorUpdateError) throw creatorUpdateError
+
       toast.success('Bank details saved! 🏦')
       fetchData()
     } catch (error: unknown) {
@@ -216,6 +251,16 @@ export default function SettingsPage() {
         .eq('creator_id', creator.id)
 
       if (error) throw error
+
+      const { error: creatorUpdateError } = await supabase
+        .from('creators')
+        .update({
+          whatsapp_number: whatsapp.trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', creator.id)
+
+      if (creatorUpdateError) throw creatorUpdateError
 
       toast.success('Appearance updated! ✨')
     } catch (error: unknown) {
@@ -245,6 +290,16 @@ export default function SettingsPage() {
         .eq('creator_id', creator.id)
 
       if (error) throw error
+
+      const { error: creatorUpdateError } = await supabase
+        .from('creators')
+        .update({
+          whatsapp_number: whatsapp.trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', creator.id)
+
+      if (creatorUpdateError) throw creatorUpdateError
 
       toast.success('Social links saved! 🔗')
     } catch (error: unknown) {
@@ -486,21 +541,44 @@ export default function SettingsPage() {
           <div>
             <label className="block text-sm font-medium mb-3">Theme</label>
             <div className="grid grid-cols-5 gap-3">
-              {THEMES.map((theme) => (
-                <button
-                  key={theme.id}
-                  onClick={() => setSelectedTheme(theme.id)}
-                  className={`aspect-[3/4] rounded-xl border-2 cursor-pointer transition-all ${selectedTheme === theme.id
-                    ? 'border-[#E8651A] ring-2 ring-[#E8651A]/20'
-                    : 'border-gray-200 hover:border-gray-300'
+              {THEMES.map((theme) => {
+                const plan = creator?.plan || 'free'
+                const isLocked = !PLAN_FEATURES[plan].themes.includes(theme.id)
+                return (
+                  <button
+                    key={theme.id}
+                    onClick={() => {
+                      if (isLocked) {
+                        promptUpgrade('Premium themes')
+                        return
+                      }
+                      setSelectedTheme(theme.id)
+                    }}
+                    className={`aspect-[3/4] rounded-xl border-2 transition-all relative ${
+                      isLocked
+                        ? 'border-gray-200 opacity-60 cursor-not-allowed'
+                        : selectedTheme === theme.id
+                          ? 'border-[#E8651A] ring-2 ring-[#E8651A]/20 cursor-pointer'
+                          : 'border-gray-200 hover:border-gray-300 cursor-pointer'
                     }`}
-                >
-                  <div className={`h-full rounded-lg ${theme.bg} p-2 flex flex-col`}>
-                    <div className={`w-full h-2 rounded ${theme.accent} mt-auto`} />
-                  </div>
-                </button>
-              ))}
+                  >
+                    <div className={`h-full rounded-lg ${theme.bg} p-2 flex flex-col`}>
+                      <div className={`w-full h-2 rounded ${theme.accent} mt-auto`} />
+                    </div>
+                    {isLocked && (
+                      <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/50">
+                        <Lock className="w-4 h-4 text-gray-400" />
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
             </div>
+            {(creator?.plan || 'free') === 'free' && (
+              <Link href="/dashboard/plan" className="inline-flex items-center gap-1.5 text-xs text-[#E8651A] font-medium mt-2 hover:underline">
+                <Crown className="w-3.5 h-3.5" /> Upgrade to unlock all themes
+              </Link>
+            )}
           </div>
 
           <div>
@@ -645,3 +723,5 @@ export default function SettingsPage() {
     </div>
   )
 }
+
+
