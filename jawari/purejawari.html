@@ -1,0 +1,2109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PureJawari | Organic Flour from North Karnataka</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Lora:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #f8f1e4;
+    --warm-white: #fffaf2;
+    --paper: #f5ead7;
+    --earth: #5b351d;
+    --earth-deep: #31190d;
+    --gold: #b9872f;
+    --grain: #cfa15c;
+    --sage: #7d8d58;
+    --clay: #a65d32;
+    --text: #2f1d12;
+    --text-soft: #6b4b37;
+    --line: rgba(91, 53, 29, 0.12);
+    --shadow: 0 18px 48px rgba(67, 36, 15, 0.12);
+    --radius: 24px;
+    --radius-sm: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: "Manrope", sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(circle at top right, rgba(185, 135, 47, 0.14), transparent 26%),
+      radial-gradient(circle at bottom left, rgba(125, 141, 88, 0.14), transparent 28%),
+      var(--cream);
+    overflow-x: hidden;
+  }
+  img { display: block; max-width: 100%; }
+  a { color: inherit; }
+  section { padding: 88px 5%; }
+
+  .shell {
+    max-width: 1240px;
+    margin: 0 auto;
+  }
+
+  .section-top {
+    text-align: center;
+    max-width: 760px;
+    margin: 0 auto 40px;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 16px;
+  }
+
+  .eyebrow::before,
+  .eyebrow::after {
+    content: "";
+    width: 28px;
+    height: 1px;
+    background: rgba(185, 135, 47, 0.5);
+  }
+
+  .section-title {
+    font-family: "Playfair Display", serif;
+    font-size: clamp(2.2rem, 4vw, 3.6rem);
+    line-height: 1.08;
+    color: var(--earth-deep);
+    margin-bottom: 14px;
+  }
+
+  .section-copy {
+    font-family: "Lora", serif;
+    font-size: 1.04rem;
+    line-height: 1.8;
+    color: var(--text-soft);
+  }
+
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    backdrop-filter: blur(14px);
+    background: rgba(248, 241, 228, 0.9);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .nav-inner {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 14px 5%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .brand {
+    font-family: "Playfair Display", serif;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--earth-deep);
+    text-decoration: none;
+    letter-spacing: -0.03em;
+  }
+
+  .brand span { color: var(--gold); }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    list-style: none;
+  }
+
+  .nav-links a {
+    text-decoration: none;
+    color: var(--text-soft);
+    font-size: 0.92rem;
+    font-weight: 600;
+  }
+
+  .nav-links a:hover { color: var(--earth); }
+
+  .nav-cta,
+  .btn-primary,
+  .btn-secondary,
+  .btn-buy,
+  .modal-submit {
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 700;
+    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+
+  .nav-cta,
+  .btn-primary,
+  .modal-submit {
+    background: var(--earth);
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(91, 53, 29, 0.18);
+  }
+
+  .nav-cta:hover,
+  .btn-primary:hover,
+  .modal-submit:hover,
+  .btn-buy:hover {
+    transform: translateY(-2px);
+    background: var(--earth-deep);
+  }
+
+  .nav-cta { padding: 12px 18px; font-size: 0.92rem; }
+  .btn-primary,
+  .btn-secondary { padding: 15px 24px; font-size: 0.96rem; }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--earth);
+    border: 1.5px solid rgba(91, 53, 29, 0.28);
+  }
+
+  .btn-secondary:hover {
+    transform: translateY(-2px);
+    background: rgba(91, 53, 29, 0.06);
+  }
+
+  .hero {
+    padding: 72px 5% 48px;
+  }
+
+  .hero-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .hero-card {
+    position: relative;
+    overflow: hidden;
+    background:
+      linear-gradient(180deg, rgba(255, 250, 242, 0.98), rgba(245, 234, 215, 0.95)),
+      var(--warm-white);
+    border: 1px solid rgba(91, 53, 29, 0.1);
+    border-radius: 36px;
+    padding: 56px 28px 30px;
+    box-shadow: var(--shadow);
+  }
+
+  .hero-card::before {
+    content: "";
+    position: absolute;
+    inset: -15% auto auto -8%;
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(185, 135, 47, 0.18), transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-card::after {
+    content: "";
+    position: absolute;
+    inset: auto -10% -18% auto;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(125, 141, 88, 0.18), transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: rgba(125, 141, 88, 0.12);
+    border: 1px solid rgba(125, 141, 88, 0.2);
+    color: var(--sage);
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 22px;
+  }
+
+  .hero-title {
+    font-family: "Playfair Display", serif;
+    font-size: clamp(3rem, 6vw, 5.6rem);
+    line-height: 0.98;
+    color: var(--earth-deep);
+    max-width: 880px;
+    margin: 0 auto 20px;
+  }
+
+  .hero-copy {
+    font-family: "Lora", serif;
+    font-size: 1.13rem;
+    line-height: 1.85;
+    color: var(--text-soft);
+    max-width: 850px;
+    margin: 0 auto;
+  }
+
+  .hero-copy + .hero-copy {
+    margin-top: 12px;
+    font-size: 0.98rem;
+    color: #7b5f4a;
+  }
+
+  .hero-actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: 28px 0 34px;
+  }
+
+  .hero-slider {
+    position: relative;
+    margin-top: 8px;
+  }
+
+  .hero-carousel {
+    position: relative;
+    width: min(100%, 1080px);
+    margin: 0 auto;
+    padding: 0 56px;
+  }
+
+  .hero-viewport {
+    overflow: hidden;
+    border-radius: 30px;
+    border: 1px solid rgba(91, 53, 29, 0.12);
+    background: rgba(255, 255, 255, 0.84);
+    box-shadow: 0 18px 44px rgba(67, 36, 15, 0.14);
+  }
+
+  .hero-track {
+    display: flex;
+    transition: transform 0.7s ease;
+  }
+
+  .hero-slide {
+    min-width: 100%;
+    position: relative;
+  }
+
+  .hero-slide img {
+    width: 100%;
+    height: clamp(320px, 52vw, 620px);
+    object-fit: cover;
+  }
+
+  .hero-caption {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 28px 28px 26px;
+    text-align: left;
+    color: #fff;
+    background: linear-gradient(180deg, rgba(17, 10, 6, 0) 0%, rgba(17, 10, 6, 0.78) 100%);
+  }
+
+  .hero-caption strong {
+    display: block;
+    font-family: "Playfair Display", serif;
+    font-size: clamp(1.5rem, 2.6vw, 2.3rem);
+    font-weight: 700;
+    line-height: 1.18;
+    margin-bottom: 6px;
+  }
+
+  .hero-caption span {
+    display: block;
+    max-width: 620px;
+    font-size: 0.98rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.88);
+  }
+
+  .hero-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(49, 25, 13, 0.84);
+    color: #fff;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 2;
+    box-shadow: 0 10px 24px rgba(27, 15, 9, 0.22);
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+
+  .hero-nav:hover {
+    background: rgba(49, 25, 13, 0.96);
+    transform: translateY(-50%) scale(1.04);
+  }
+
+  .hero-prev { left: 0; }
+  .hero-next { right: 0; }
+
+  .hero-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .hero-dot {
+    width: 11px;
+    height: 11px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(91, 53, 29, 0.22);
+    cursor: pointer;
+    transition: width 0.2s ease, background 0.2s ease, transform 0.2s ease;
+  }
+
+  .hero-dot.active {
+    width: 34px;
+    background: var(--earth);
+  }
+
+  .hero-dot:hover {
+    transform: scale(1.05);
+  }
+
+  .story {
+    background: linear-gradient(180deg, rgba(255, 250, 242, 0.92), rgba(248, 241, 228, 0.92));
+  }
+
+  .story-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 42px;
+    align-items: center;
+  }
+
+  .story-text p {
+    font-family: "Lora", serif;
+    font-size: 1rem;
+    line-height: 1.85;
+    color: var(--text-soft);
+    margin-bottom: 16px;
+  }
+
+  .story-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 24px;
+  }
+
+  .stat-card {
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 18px;
+    text-align: center;
+  }
+
+  .stat-value {
+    display: block;
+    font-family: "Playfair Display", serif;
+    font-size: 2.1rem;
+    color: var(--gold);
+  }
+
+  .stat-label {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-soft);
+  }
+
+  .story-collage {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .story-collage .wide { grid-column: 1 / -1; }
+
+  .photo-card {
+    overflow: hidden;
+    border-radius: 24px;
+    border: 1px solid rgba(91, 53, 29, 0.1);
+    background: rgba(255, 255, 255, 0.65);
+    box-shadow: 0 16px 30px rgba(67, 36, 15, 0.08);
+  }
+
+  .photo-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .photo-card.wide { min-height: 280px; }
+  .photo-card.small { min-height: 220px; }
+
+  .organic {
+    background: linear-gradient(135deg, #342013 0%, #4f301b 50%, #2c170c 100%);
+    color: #fff;
+  }
+
+  .organic .section-title,
+  .organic .section-copy,
+  .organic .eyebrow { color: inherit; }
+
+  .organic .eyebrow::before,
+  .organic .eyebrow::after {
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  .organic-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 38px;
+  }
+
+  .organic-card {
+    padding: 24px;
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .organic-tag {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #f1d9ac;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .organic-card h3 {
+    font-family: "Playfair Display", serif;
+    font-size: 1.28rem;
+    margin-bottom: 10px;
+  }
+
+  .organic-card p {
+    color: rgba(255, 255, 255, 0.74);
+    line-height: 1.75;
+    font-size: 0.94rem;
+  }
+
+  .nutrition-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-top: 34px;
+  }
+
+  .nutrition-card {
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: 0 12px 30px rgba(67, 36, 15, 0.06);
+  }
+
+  .nutrition-card h3 {
+    font-family: "Playfair Display", serif;
+    font-size: 1.6rem;
+    color: var(--earth-deep);
+    margin-bottom: 8px;
+  }
+
+  .nutrition-card p {
+    font-size: 0.94rem;
+    color: var(--text-soft);
+    line-height: 1.7;
+    margin-bottom: 20px;
+  }
+
+  .meter {
+    display: grid;
+    gap: 12px;
+  }
+
+  .meter-row {
+    display: grid;
+    grid-template-columns: 92px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.84rem;
+    color: var(--text-soft);
+  }
+
+  .meter-bar {
+    position: relative;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(91, 53, 29, 0.08);
+    overflow: hidden;
+  }
+
+  .meter-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--sage), var(--gold));
+  }
+
+  .benefit-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 40px;
+  }
+
+  .benefit-card {
+    background: var(--warm-white);
+    border-radius: 22px;
+    border: 1px solid var(--line);
+    padding: 22px;
+  }
+
+  .benefit-card h3 {
+    font-family: "Playfair Display", serif;
+    font-size: 1.3rem;
+    color: var(--earth-deep);
+    margin-bottom: 8px;
+  }
+
+  .benefit-card p {
+    font-size: 0.95rem;
+    line-height: 1.72;
+    color: var(--text-soft);
+  }
+
+  .taste {
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at left center, rgba(185, 135, 47, 0.18), transparent 26%),
+      radial-gradient(circle at right center, rgba(125, 141, 88, 0.15), transparent 26%),
+      linear-gradient(135deg, #3e2414 0%, #64381d 55%, #2d180d 100%);
+    color: #fff;
+    text-align: center;
+  }
+
+  .taste .eyebrow,
+  .taste .section-title,
+  .taste .section-copy { color: inherit; }
+
+  .taste .eyebrow::before,
+  .taste .eyebrow::after {
+    background: rgba(255, 255, 255, 0.28);
+  }
+
+  .taste-quote {
+    max-width: 900px;
+    margin: 0 auto 18px;
+    font-family: "Playfair Display", serif;
+    font-size: clamp(2rem, 4vw, 3.4rem);
+    line-height: 1.24;
+    color: #f5ddb3;
+  }
+
+  .taste-copy {
+    max-width: 760px;
+    margin: 0 auto;
+    font-family: "Lora", serif;
+    font-size: 1.07rem;
+    line-height: 1.9;
+    color: rgba(255, 255, 255, 0.84);
+  }
+
+  .taste-notes {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 30px;
+  }
+
+  .taste-note {
+    padding: 11px 16px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #fff4de;
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
+
+  .testimonials {
+    background: linear-gradient(180deg, rgba(255, 250, 242, 0.96), rgba(248, 241, 228, 0.96));
+  }
+
+  .testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+
+  .testimonial {
+    background: rgba(255, 255, 255, 0.74);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: 0 14px 32px rgba(67, 36, 15, 0.05);
+  }
+
+  .stars {
+    font-size: 0.92rem;
+    letter-spacing: 0.18em;
+    color: var(--gold);
+    margin-bottom: 12px;
+  }
+
+  .testimonial p {
+    font-family: "Lora", serif;
+    font-size: 0.98rem;
+    line-height: 1.8;
+    color: var(--text-soft);
+    margin-bottom: 18px;
+  }
+
+  .testimonial strong {
+    display: block;
+    color: var(--earth-deep);
+    font-size: 0.95rem;
+  }
+
+  .testimonial span {
+    display: block;
+    margin-top: 3px;
+    color: #8b6a55;
+    font-size: 0.82rem;
+  }
+
+  .process-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin-top: 36px;
+  }
+
+  .process-card {
+    background: var(--warm-white);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 12px 24px rgba(67, 36, 15, 0.06);
+  }
+
+  .process-card img {
+    height: 180px;
+    width: 100%;
+    object-fit: cover;
+  }
+
+  .process-copy {
+    padding: 20px;
+  }
+
+  .process-step {
+    display: inline-block;
+    margin-bottom: 8px;
+    color: var(--gold);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .process-copy h3 {
+    font-family: "Playfair Display", serif;
+    font-size: 1.28rem;
+    margin-bottom: 8px;
+  }
+
+  .process-copy p {
+    font-size: 0.93rem;
+    line-height: 1.72;
+    color: var(--text-soft);
+  }
+
+  .shop {
+    background: linear-gradient(180deg, rgba(248, 241, 228, 0.5), rgba(255, 250, 242, 0.94));
+  }
+
+  .shop-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 28px;
+  }
+
+  .tab-btn {
+    border: 1px solid rgba(91, 53, 29, 0.12);
+    background: rgba(255, 255, 255, 0.68);
+    color: var(--text-soft);
+    padding: 12px 18px;
+    border-radius: 999px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .tab-btn.active {
+    background: var(--earth);
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(91, 53, 29, 0.15);
+  }
+
+  .product-panel { display: none; }
+  .product-panel.active { display: block; }
+
+  .product-header {
+    text-align: center;
+    max-width: 720px;
+    margin: 0 auto 26px;
+  }
+
+  .product-title {
+    font-family: "Playfair Display", serif;
+    font-size: clamp(1.8rem, 3vw, 2.5rem);
+    color: var(--earth-deep);
+    margin-bottom: 8px;
+  }
+
+  .product-meta {
+    font-family: "Lora", serif;
+    color: var(--text-soft);
+    line-height: 1.75;
+  }
+
+  .packages-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+  }
+
+  .package-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px;
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    box-shadow: 0 14px 34px rgba(67, 36, 15, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+
+  .package-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 18px 40px rgba(67, 36, 15, 0.1);
+    border-color: rgba(185, 135, 47, 0.42);
+  }
+
+  .package-card.popular {
+    border-color: rgba(185, 135, 47, 0.42);
+    background: linear-gradient(180deg, rgba(255, 250, 242, 0.95), rgba(255, 255, 255, 0.8));
+  }
+
+  .badge {
+    position: absolute;
+    top: -11px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: var(--gold);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .package-thumb {
+    width: 86px;
+    height: 86px;
+    margin: 0 auto;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid rgba(91, 53, 29, 0.1);
+  }
+
+  .package-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .package-weight {
+    text-align: center;
+    font-family: "Playfair Display", serif;
+    font-size: 1.72rem;
+    color: var(--earth-deep);
+  }
+
+  .package-use {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #8d6e58;
+  }
+
+  .package-mrp {
+    text-align: center;
+    color: #977963;
+    font-size: 0.82rem;
+    text-decoration: line-through;
+  }
+
+  .package-price {
+    text-align: center;
+    font-family: "Playfair Display", serif;
+    font-size: 1.56rem;
+    color: var(--earth);
+  }
+
+  .package-save {
+    text-align: center;
+    font-size: 0.78rem;
+  }
+
+  .package-save { color: var(--sage); font-weight: 800; }
+
+  .btn-buy {
+    margin-top: auto;
+    background: var(--earth);
+    color: #fff;
+    padding: 12px 14px;
+    font-size: 0.9rem;
+  }
+
+  .delivery-note {
+    text-align: center;
+    margin-top: 18px;
+    color: var(--text-soft);
+    font-size: 0.9rem;
+  }
+
+  .contact {
+    background: linear-gradient(180deg, rgba(255, 250, 242, 0.95), rgba(248, 241, 228, 0.88));
+  }
+
+  .contact-grid {
+    max-width: 900px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+
+  .contact-card {
+    padding: 28px;
+    border-radius: 26px;
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid var(--line);
+    box-shadow: 0 16px 34px rgba(67, 36, 15, 0.08);
+    text-align: center;
+  }
+
+  .contact-card h3 {
+    font-family: "Playfair Display", serif;
+    font-size: 1.7rem;
+    color: var(--earth-deep);
+    margin-bottom: 10px;
+  }
+
+  .contact-card p {
+    color: var(--text-soft);
+    line-height: 1.75;
+    margin-bottom: 18px;
+  }
+
+  .contact-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 220px;
+    padding: 14px 18px;
+    border-radius: 999px;
+    background: var(--earth);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    box-shadow: 0 10px 24px rgba(91, 53, 29, 0.16);
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+
+  .contact-link:hover {
+    transform: translateY(-2px);
+    background: var(--earth-deep);
+  }
+
+  footer {
+    background: linear-gradient(135deg, #25140b 0%, #392113 100%);
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .footer-grid {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 60px 5% 36px;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 28px;
+  }
+
+  .footer-brand {
+    max-width: 360px;
+  }
+
+  .footer-brand .brand {
+    display: inline-block;
+    color: #fff;
+    margin-bottom: 14px;
+  }
+
+  .footer-brand p {
+    font-family: "Lora", serif;
+    line-height: 1.8;
+    font-size: 0.96rem;
+    margin-bottom: 16px;
+  }
+
+  .footer-meta {
+    display: grid;
+    gap: 8px;
+    font-size: 0.88rem;
+  }
+
+  .footer-col h4 {
+    color: #fff;
+    margin-bottom: 14px;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .footer-links {
+    list-style: none;
+    display: grid;
+    gap: 10px;
+  }
+
+  .footer-links a {
+    color: rgba(255, 255, 255, 0.72);
+    text-decoration: none;
+    font-size: 0.9rem;
+  }
+
+  .footer-links a:hover { color: #f3d7a4; }
+
+  .footer-bottom {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 18px 5% 28px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+  }
+
+  .footer-bottom-links {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+
+  .footer-bottom-links a {
+    color: rgba(255, 255, 255, 0.68);
+    text-decoration: none;
+  }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(31, 18, 10, 0.68);
+    backdrop-filter: blur(6px);
+    z-index: 40;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    width: min(100%, 560px);
+    background: var(--warm-white);
+    border-radius: 30px;
+    padding: 28px;
+    border: 1px solid var(--line);
+    box-shadow: 0 22px 60px rgba(27, 15, 9, 0.24);
+    position: relative;
+  }
+
+  .modal-wide {
+    width: min(100%, 720px);
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(91, 53, 29, 0.08);
+    color: var(--earth);
+    font-size: 1.2rem;
+    cursor: pointer;
+  }
+
+  .modal h2 {
+    font-family: "Playfair Display", serif;
+    font-size: 2rem;
+    color: var(--earth-deep);
+    margin-bottom: 8px;
+  }
+
+  .modal p {
+    color: var(--text-soft);
+    line-height: 1.72;
+    margin-bottom: 18px;
+  }
+
+  .modal-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--paper);
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 18px;
+  }
+
+  .modal-summary strong {
+    display: block;
+    color: var(--earth-deep);
+    font-size: 1rem;
+  }
+
+  .modal-summary span {
+    color: var(--gold);
+    font-family: "Playfair Display", serif;
+    font-size: 1.3rem;
+  }
+
+  .modal form {
+    display: grid;
+    gap: 12px;
+  }
+
+  .modal input,
+  .modal textarea {
+    width: 100%;
+    border: 1px solid rgba(91, 53, 29, 0.14);
+    border-radius: 14px;
+    padding: 14px 16px;
+    font: inherit;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.85);
+  }
+
+  .modal textarea {
+    resize: vertical;
+    min-height: 90px;
+  }
+
+  .modal-submit {
+    padding: 14px 18px;
+    font-size: 0.95rem;
+  }
+
+  .modal-note {
+    margin-top: 12px;
+    font-size: 0.8rem;
+    color: #8e6e58;
+  }
+
+  .legal-copy h3 {
+    font-family: "Playfair Display", serif;
+    font-size: 1.45rem;
+    color: var(--earth-deep);
+    margin: 0 0 12px;
+  }
+
+  .legal-copy p,
+  .legal-copy li {
+    color: var(--text-soft);
+    line-height: 1.82;
+    font-size: 0.95rem;
+  }
+
+  .legal-copy ul {
+    padding-left: 20px;
+    margin: 14px 0;
+  }
+
+  .fade-up {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .fade-up.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @media (max-width: 1100px) {
+    .packages-grid { grid-template-columns: repeat(3, 1fr); }
+    .process-grid { grid-template-columns: repeat(2, 1fr); }
+    .footer-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 900px) {
+    .nav-links { display: none; }
+    .story-grid,
+    .organic-grid,
+    .nutrition-grid,
+    .benefit-list,
+    .testimonials-grid,
+    .contact-grid {
+      grid-template-columns: 1fr;
+    }
+    .story-stats { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 700px) {
+    section { padding: 72px 5%; }
+    .hero-card { padding: 44px 18px 24px; border-radius: 28px; }
+    .hero-copy { font-size: 1rem; }
+    .hero-carousel { padding: 0 12px; }
+    .hero-slide img { height: 310px; }
+    .hero-caption { padding: 20px 18px 18px; }
+    .hero-caption strong { font-size: 1.5rem; }
+    .hero-caption span { font-size: 0.9rem; }
+    .hero-nav {
+      width: 42px;
+      height: 42px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .hero-nav:hover { transform: translateY(-50%) scale(1.03); }
+    .hero-prev { left: 16px; }
+    .hero-next { right: 16px; }
+    .story-collage { grid-template-columns: 1fr; }
+    .photo-card.wide,
+    .photo-card.small { min-height: 220px; }
+    .packages-grid { grid-template-columns: repeat(2, 1fr); }
+    .footer-grid { grid-template-columns: 1fr; }
+    .footer-bottom { flex-direction: column; }
+  }
+
+  @media (max-width: 480px) {
+    .nav-inner { padding-top: 12px; padding-bottom: 12px; }
+    .brand { font-size: 1.35rem; }
+    .nav-cta { padding: 10px 14px; font-size: 0.84rem; }
+    .hero-title { font-size: 2.45rem; }
+    .hero-slide img { height: 260px; }
+    .hero-caption strong { font-size: 1.28rem; }
+    .hero-dots { gap: 8px; }
+    .hero-dot.active { width: 28px; }
+    .hero-actions { flex-direction: column; }
+    .btn-primary,
+    .btn-secondary { width: 100%; justify-content: center; }
+    .packages-grid { grid-template-columns: 1fr; }
+    .process-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a class="brand" href="#top">Pure<span>Jawari</span></a>
+    <ul class="nav-links">
+      <li><a href="#story">Our Story</a></li>
+      <li><a href="#organic">Why Organic</a></li>
+      <li><a href="#nutrition">Nutrition</a></li>
+      <li><a href="#shop">Shop</a></li>
+      <li><a href="#testimonials">Reviews</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+    <button class="nav-cta" onclick="document.getElementById('shop').scrollIntoView({behavior:'smooth'})">Buy Fresh Flour</button>
+  </div>
+</nav>
+
+<main id="top">
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-card fade-up">
+        <div class="hero-badge">North Karnataka Organic Grain Flour</div>
+        <h1 class="hero-title">The Taste of Pure Tradition</h1>
+        <p class="hero-copy">Stone-cold milled, chemical-free, organically grown Jowar, Wheat, Maize, and Ragi flour - crafted from the ancient grains of North Karnataka's fertile Deccan plateau. Every roti carries a memory.</p>
+        <div class="hero-actions">
+          <a class="btn-primary" href="#shop">Shop All Flours</a>
+          <a class="btn-secondary" href="#story">Read the Story</a>
+        </div>
+        <div class="hero-slider" aria-label="PureJawari image slider">
+          <div class="hero-carousel" id="heroCarousel">
+            <button class="hero-nav hero-prev" id="heroPrev" type="button" aria-label="Previous slide">&lt;</button>
+            <div class="hero-viewport">
+              <div class="hero-track" id="heroTrack">
+                <div class="hero-slide">
+                  <img src="assets/images/01-jowar-field.jpg" alt="Jowar fields in North Karnataka">
+                  <div class="hero-caption"><strong>Jowar fields of North Karnataka</strong><span>Hardy sorghum grown under the dry warmth of the Deccan plateau.</span></div>
+                </div>
+                <div class="hero-slide">
+                  <img src="assets/images/02-jowar-grains.jpg" alt="Jowar grains held in hand">
+                  <div class="hero-caption"><strong>Pure jowar grains in hand</strong><span>Clean grain, full-bodied aroma, and the texture traditional rottis are known for.</span></div>
+                </div>
+                <div class="hero-slide">
+                  <img src="assets/images/03-jowar-flour.jpg" alt="Freshly milled jowar flour">
+                  <div class="hero-caption"><strong>Freshly milled jowar flour</strong><span>Stone-cold milling keeps the grain character, aroma, and wholesome body intact.</span></div>
+                </div>
+                <div class="hero-slide">
+                  <img src="assets/images/04-jowar-rotti.jpg" alt="Jowar rotti on tawa">
+                  <div class="hero-caption"><strong>Crisp jowar rotti on the tawa</strong><span>The edge should crisp lightly while the center stays soft and warm.</span></div>
+                </div>
+                <div class="hero-slide">
+                  <img src="assets/images/05-jowar-meal.jpg" alt="North Karnataka meal with jowar rotti">
+                  <div class="hero-caption"><strong>Full meal with North Karnataka rotti</strong><span>The kind of plate that feels complete only when the rotti is right.</span></div>
+                </div>
+                <div class="hero-slide">
+                  <img src="assets/images/06-wheat-field.jpg" alt="Golden wheat farmland">
+                  <div class="hero-caption"><strong>Golden wheat farmland</strong><span>Whole wheat that carries the sweet, nutty depth of a well-grown harvest.</span></div>
+                </div>
+                <div class="hero-slide">
+                  <img src="assets/images/07-wheat-grains.jpg" alt="Whole wheat grains in hand">
+                  <div class="hero-caption"><strong>Handpicked whole wheat grains</strong><span>Good chapati begins with grain that still looks and feels alive.</span></div>
+                </div>
+                <div class="hero-slide">
+                  <img src="assets/images/08-wheat-flour.jpg" alt="Whole wheat flour and milling process">
+                  <div class="hero-caption"><strong>Soft whole wheat flour</strong><span>Fresh-milled flour that rolls out into chapatis with softness and stretch.</span></div>
+                </div>
+                <div class="hero-slide">
+                  <img src="assets/images/09-chapati.jpg" alt="Soft chapatis made from whole wheat flour">
+                  <div class="hero-caption"><strong>Soft chapatis with slow-milled flour</strong><span>Supple, fragrant, and familiar in the way only good chapati can be.</span></div>
+                </div>
+                <div class="hero-slide">
+                  <img src="assets/images/10-chapati-meal.jpg" alt="Chapati served with a complete meal">
+                  <div class="hero-caption"><strong>Complete family thali</strong><span>Everyday grain flour belongs on a full plate shared across the family table.</span></div>
+                </div>
+                <div class="hero-slide">
+                  <img src="assets/images/11-maize-grains.jpg" alt="Maize grains for traditional flour">
+                  <div class="hero-caption"><strong>Maize flour for rustic comfort meals</strong><span>Warm, earthy, and naturally suited to hearty village-style cooking.</span></div>
+                </div>
+                <div class="hero-slide">
+                  <img src="assets/images/12-ragi-grains.jpg" alt="Ragi grains for nourishing flour">
+                  <div class="hero-caption"><strong>Ragi flour for nourishing daily food</strong><span>Deep grain character and everyday nourishment in a familiar South Indian staple.</span></div>
+                </div>
+              </div>
+            </div>
+            <button class="hero-nav hero-next" id="heroNext" type="button" aria-label="Next slide">&gt;</button>
+          </div>
+          <div class="hero-dots" id="heroDots" aria-label="Hero slide dots"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="story fade-up" id="story">
+    <div class="shell story-grid">
+      <div class="story-text">
+        <div class="eyebrow">Our Story</div>
+        <h2 class="section-title">Where Ancient Grains Meet Honest Farming</h2>
+        <p>In the sun-baked belt of North Karnataka - across Vijayapura, Mudhol, Bagalkot, Dharwad, and the surrounding Deccan plateau - jowar has never been just another crop. It is the grain of sustenance, identity, and everyday life. A good jowar rotti served with chutney, ennegai, or cool curd is not simply a meal. It is memory.</p>
+        <p>PureJawari is shaped by that same memory. The idea is simple: flour should reach the family table with its grain character, aroma, and honesty still intact. That is why the brand centers on clean ingredients, slow milling, and the unmistakable taste people from this region immediately recognize.</p>
+        <p>Alongside jowar and wheat, maize and ragi complete that traditional grain basket - bringing warmth, nourishment, and a familiar home-style feel to rotis, chapatis, porridges, and full North Karnataka meals.</p>
+        <div class="story-stats">
+          <div class="stat-card"><span class="stat-value">4</span><span class="stat-label">Organic Flours</span></div>
+          <div class="stat-card"><span class="stat-value">5</span><span class="stat-label">Pack Sizes</span></div>
+          <div class="stat-card"><span class="stat-value">100%</span><span class="stat-label">Pure Grain Focus</span></div>
+        </div>
+      </div>
+      <div class="story-collage">
+        <div class="photo-card wide"><img src="assets/images/06-wheat-field.jpg" alt="North Karnataka harvest landscape"></div>
+        <div class="photo-card small"><img src="assets/images/03-jowar-flour.jpg" alt="Traditional milling process"></div>
+        <div class="photo-card small"><img src="assets/images/01-jowar-field.jpg" alt="Jowar growing in the field"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="organic fade-up" id="organic">
+    <div class="shell">
+      <div class="section-top">
+        <div class="eyebrow">Why Prefer Organic</div>
+        <h2 class="section-title">A Better Flour Starts with Better Grain</h2>
+        <p class="section-copy">Organic flour is not just about what is removed. It is about what is preserved: soil character, grain aroma, natural texture, and the feeling of eating food that still tastes alive.</p>
+      </div>
+      <div class="organic-grid">
+        <article class="organic-card">
+          <div class="organic-tag">No Shortcut</div>
+          <h3>No chemical-heavy processing</h3>
+          <p>The promise here is simple: cleaner grain, less interference, and a more trustworthy kitchen staple for everyday cooking.</p>
+        </article>
+        <article class="organic-card">
+          <div class="organic-tag">Slow Milling</div>
+          <h3>Stone-cold milled character</h3>
+          <p>Slow grinding helps preserve natural oils, fibre, and aroma, which is why the dough feels richer and the roti tastes fuller.</p>
+        </article>
+        <article class="organic-card">
+          <div class="organic-tag">Regional Taste</div>
+          <h3>North Karnataka identity</h3>
+          <p>Local grain stories matter. The rotti and chapati from this belt carry a dry-land grain sweetness and texture people remember deeply.</p>
+        </article>
+        <article class="organic-card">
+          <div class="organic-tag">Kitchen Trust</div>
+          <h3>Only flour, nothing hidden</h3>
+          <p>No unnecessary additives, no bleaching story, and no confusing label language. Just flour meant for daily cooking.</p>
+        </article>
+        <article class="organic-card">
+          <div class="organic-tag">Family Food</div>
+          <h3>Works across ages and meals</h3>
+          <p>From breakfast porridge to lunch rotis and evening chapatis, these flours can sit naturally inside a family kitchen routine.</p>
+        </article>
+        <article class="organic-card">
+          <div class="organic-tag">Fresh Batches</div>
+          <h3>Prepared for better aroma</h3>
+          <p>Fresh milling and thoughtful packing help protect the smell, texture, and taste that make good grain instantly recognizable.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="fade-up" id="nutrition">
+    <div class="shell">
+      <div class="section-top">
+        <div class="eyebrow">Nutritional Value</div>
+        <h2 class="section-title">Four Flours, Four Kinds of Everyday Strength</h2>
+        <p class="section-copy">These values are simple on-page reference points for the customer experience. They help explain why each flour can be a meaningful part of meals for children, adults, and elders.</p>
+      </div>
+      <div class="nutrition-grid">
+        <article class="nutrition-card">
+          <h3>Jowar Flour</h3>
+          <p>Known for balanced energy, fibre-rich meals, and the earthy taste that gives North Karnataka rotti its identity.</p>
+          <div class="meter">
+            <div class="meter-row"><span>Protein</span><div class="meter-bar"><div class="meter-fill" style="width:68%"></div></div><span>10.4g</span></div>
+            <div class="meter-row"><span>Fibre</span><div class="meter-bar"><div class="meter-fill" style="width:61%"></div></div><span>6.3g</span></div>
+            <div class="meter-row"><span>Iron</span><div class="meter-bar"><div class="meter-fill" style="width:55%"></div></div><span>4.1mg</span></div>
+            <div class="meter-row"><span>Energy</span><div class="meter-bar"><div class="meter-fill" style="width:82%"></div></div><span>349 kcal</span></div>
+          </div>
+        </article>
+        <article class="nutrition-card">
+          <h3>Whole Wheat Flour</h3>
+          <p>Soft, familiar, and reliable for chapatis, daily tiffin use, and family meals that need wholesome comfort.</p>
+          <div class="meter">
+            <div class="meter-row"><span>Protein</span><div class="meter-bar"><div class="meter-fill" style="width:78%"></div></div><span>12.6g</span></div>
+            <div class="meter-row"><span>Fibre</span><div class="meter-bar"><div class="meter-fill" style="width:65%"></div></div><span>7.2g</span></div>
+            <div class="meter-row"><span>Iron</span><div class="meter-bar"><div class="meter-fill" style="width:50%"></div></div><span>3.9mg</span></div>
+            <div class="meter-row"><span>Energy</span><div class="meter-bar"><div class="meter-fill" style="width:80%"></div></div><span>341 kcal</span></div>
+          </div>
+        </article>
+        <article class="nutrition-card">
+          <h3>Maize Flour</h3>
+          <p>Warm, slightly sweet, and satisfying. A comforting option for rustic rotis, village-style breads, and homestyle snacks.</p>
+          <div class="meter">
+            <div class="meter-row"><span>Protein</span><div class="meter-bar"><div class="meter-fill" style="width:58%"></div></div><span>8.7g</span></div>
+            <div class="meter-row"><span>Fibre</span><div class="meter-bar"><div class="meter-fill" style="width:56%"></div></div><span>5.1g</span></div>
+            <div class="meter-row"><span>Iron</span><div class="meter-bar"><div class="meter-fill" style="width:34%"></div></div><span>2.7mg</span></div>
+            <div class="meter-row"><span>Energy</span><div class="meter-bar"><div class="meter-fill" style="width:84%"></div></div><span>365 kcal</span></div>
+          </div>
+        </article>
+        <article class="nutrition-card">
+          <h3>Ragi Flour</h3>
+          <p>Often loved for its nourishment profile, ragi brings comforting depth and a strong everyday food identity.</p>
+          <div class="meter">
+            <div class="meter-row"><span>Protein</span><div class="meter-bar"><div class="meter-fill" style="width:52%"></div></div><span>7.3g</span></div>
+            <div class="meter-row"><span>Fibre</span><div class="meter-bar"><div class="meter-fill" style="width:72%"></div></div><span>11.5g</span></div>
+            <div class="meter-row"><span>Calcium</span><div class="meter-bar"><div class="meter-fill" style="width:88%"></div></div><span>344mg</span></div>
+            <div class="meter-row"><span>Energy</span><div class="meter-bar"><div class="meter-fill" style="width:78%"></div></div><span>336 kcal</span></div>
+          </div>
+        </article>
+      </div>
+      <div class="benefit-list">
+        <article class="benefit-card">
+          <h3>Good for children</h3>
+          <p>Soft chapatis, warm rotis, and porridges made from whole grain flour can make daily meals more nourishing and more inviting for growing children.</p>
+        </article>
+        <article class="benefit-card">
+          <h3>Good for adults</h3>
+          <p>For busy days, wholesome grain flour brings better satiety, steadier meals, and more flavor than flat, over-processed flour blends.</p>
+        </article>
+        <article class="benefit-card">
+          <h3>Good for elders</h3>
+          <p>Comforting textures, familiar taste, and simple grain-led meals can make these flours feel gentle, grounding, and easy to welcome at the table.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="taste fade-up">
+    <div class="shell">
+      <div class="eyebrow">The Selling Point</div>
+      <h2 class="taste-quote">One bite, and the taste, crispness, and texture feel like a memory from your mother's kitchen.</h2>
+      <p class="taste-copy">That is the emotional center of PureJawari. The roti should break with a light crisp edge, the chapati should stay soft and fragrant, and the bite should feel so honest that it suddenly reminds you of food made at home, without shortcuts, without artificial polish, and without losing the grain's own voice.</p>
+      <div class="taste-notes">
+        <div class="taste-note">Crisp edge</div>
+        <div class="taste-note">Soft inner bite</div>
+        <div class="taste-note">Grain-rich aroma</div>
+        <div class="taste-note">Village-style taste</div>
+        <div class="taste-note">Feels like home</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="testimonials fade-up" id="testimonials">
+    <div class="shell">
+      <div class="section-top">
+        <div class="eyebrow">Testimonials</div>
+        <h2 class="section-title">What People Should Feel When They Taste It</h2>
+        <p class="section-copy">The taste people remember is usually simple: fuller aroma, better texture, and rotis or chapatis that feel closer to home.</p>
+      </div>
+      <div class="testimonials-grid">
+        <article class="testimonial">
+          <div class="stars">★★★★★</div>
+          <p>"The jowar rotti had that exact village smell I remember from my mother's tawa. The crispness was perfect, and the inside stayed soft."</p>
+          <strong>Savita Desai</strong>
+          <span>Hubballi, Karnataka</span>
+        </article>
+        <article class="testimonial">
+          <div class="stars">★★★★★</div>
+          <p>"The wheat chapati turned out softer than our usual flour. It tasted cleaner and more natural, and my children finished dinner without fuss."</p>
+          <strong>Rahul Patil</strong>
+          <span>Pune, Maharashtra</span>
+        </article>
+        <article class="testimonial">
+          <div class="stars">★★★★★</div>
+          <p>"The maize flour brought a rustic sweetness to our meal. It felt simple, honest, and very close to the food we grew up eating."</p>
+          <strong>Neelamma Kori</strong>
+          <span>Bagalkot, Karnataka</span>
+        </article>
+        <article class="testimonial">
+          <div class="stars">★★★★★</div>
+          <p>"Ragi rotis made from this flour felt hearty but still pleasant to eat. My parents loved the taste and said it reminded them of older times."</p>
+          <strong>Prakash Hiremath</strong>
+          <span>Bengaluru, Karnataka</span>
+        </article>
+        <article class="testimonial">
+          <div class="stars">★★★★★</div>
+          <p>"The texture is what stood out. The roti felt alive, not flat. You can tell the flour was handled with more care."</p>
+          <strong>Anitha Kulkarni</strong>
+          <span>Mumbai, Maharashtra</span>
+        </article>
+        <article class="testimonial">
+          <div class="stars">★★★★★</div>
+          <p>"I liked that each flour had its own identity. Jowar for rotti, wheat for chapati, maize for comfort food, and ragi for nourishing meals."</p>
+          <strong>Vijay Hosamani</strong>
+          <span>Dharwad, Karnataka</span>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="fade-up">
+    <div class="shell">
+      <div class="section-top">
+        <div class="eyebrow">From Farm to Flour</div>
+        <h2 class="section-title">A Simple Process Customers Can Trust</h2>
+      </div>
+      <div class="process-grid">
+        <article class="process-card">
+          <img src="assets/images/01-jowar-field.jpg" alt="Jowar growing in a cultivated farm field">
+          <div class="process-copy">
+            <span class="process-step">Step 01</span>
+            <h3>Grown in trusted farm regions</h3>
+            <p>Our jowar begins in established farming regions where the crop is grown in season, harvested at maturity, and sourced with attention to field quality.</p>
+          </div>
+        </article>
+        <article class="process-card">
+          <img src="assets/images/02-jowar-grains.jpg" alt="Clean jowar grains selected for milling">
+          <div class="process-copy">
+            <span class="process-step">Step 02</span>
+            <h3>Cleaned and sorted grain</h3>
+            <p>Before milling, the grain is cleaned and sorted so only sound, food-grade jowar moves forward for flour production.</p>
+          </div>
+        </article>
+        <article class="process-card">
+          <img src="assets/images/03-jowar-flour.jpg" alt="Fresh jowar flour produced through stone milling">
+          <div class="process-copy">
+            <span class="process-step">Step 03</span>
+            <h3>Slow stone milling</h3>
+            <p>The selected grain is milled in small batches with low heat so the flour keeps its natural taste, texture, and aroma.</p>
+          </div>
+        </article>
+        <article class="process-card">
+          <img src="assets/images/05-jowar-meal.jpg" alt="Freshly cooked jowar meal served at the family table">
+          <div class="process-copy">
+            <span class="process-step">Step 04</span>
+            <h3>Freshly packed for home cooking</h3>
+            <p>After milling, the flour is packed for freshness and sent to the kitchen ready for rotis, bhakri, and everyday family meals.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="shop fade-up" id="shop">
+    <div class="shell">
+      <div class="section-top">
+        <div class="eyebrow">Shop Packages</div>
+        <h2 class="section-title">Choose Your Flour and Pack Size</h2>
+        <p class="section-copy">All product cards are wired to the order modal. Delivery charges remain separate and can be confirmed by PIN code.</p>
+      </div>
+
+      <div class="shop-tabs">
+        <button class="tab-btn active" type="button" onclick="showTab('jowar', this)">Jowar</button>
+        <button class="tab-btn" type="button" onclick="showTab('wheat', this)">Wheat</button>
+        <button class="tab-btn" type="button" onclick="showTab('maize', this)">Maize</button>
+        <button class="tab-btn" type="button" onclick="showTab('ragi', this)">Ragi</button>
+      </div>
+
+      <div class="product-panel active" id="tab-jowar">
+        <div class="product-header">
+          <h3 class="product-title">Organic Jowar (Sorghum) Flour</h3>
+          <p class="product-meta">Stone milled, naturally earthy, and made for rottis that carry the familiar North Karnataka bite and aroma.</p>
+          <p class="delivery-note">Delivery charges extra</p>
+        </div>
+        <div class="packages-grid">
+          <article class="package-card">
+            <div class="package-thumb"><img src="assets/images/03-jowar-flour.jpg" alt="Jowar flour thumbnail"></div>
+            <div class="package-weight">1 kg</div>
+            <div class="package-use">Around 40 rotis</div>
+            <div class="package-mrp">MRP Rs 150</div>
+            <div class="package-price">Rs 120</div>
+            <div class="package-save">Save Rs 30</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Jowar Flour - 1 kg', 'Rs 120')">Buy Now</button>
+          </article>
+          <article class="package-card">
+            <div class="package-thumb"><img src="assets/images/03-jowar-flour.jpg" alt="Jowar flour thumbnail"></div>
+            <div class="package-weight">2 kg</div>
+            <div class="package-use">Around 80 rotis</div>
+            <div class="package-mrp">MRP Rs 300</div>
+            <div class="package-price">Rs 240</div>
+            <div class="package-save">Save Rs 60</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Jowar Flour - 2 kg', 'Rs 240')">Buy Now</button>
+          </article>
+          <article class="package-card popular">
+            <div class="badge">Popular</div>
+            <div class="package-thumb"><img src="assets/images/03-jowar-flour.jpg" alt="Jowar flour thumbnail"></div>
+            <div class="package-weight">3 kg</div>
+            <div class="package-use">Around 120 rotis</div>
+            <div class="package-mrp">MRP Rs 450</div>
+            <div class="package-price">Rs 360</div>
+            <div class="package-save">Save Rs 90</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Jowar Flour - 3 kg', 'Rs 360')">Buy Now</button>
+          </article>
+          <article class="package-card">
+            <div class="package-thumb"><img src="assets/images/03-jowar-flour.jpg" alt="Jowar flour thumbnail"></div>
+            <div class="package-weight">5 kg</div>
+            <div class="package-use">Around 200 rotis</div>
+            <div class="package-mrp">MRP Rs 600</div>
+            <div class="package-price">Rs 500</div>
+            <div class="package-save">Save Rs 100</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Jowar Flour - 5 kg', 'Rs 500')">Buy Now</button>
+          </article>
+          <article class="package-card">
+            <div class="package-thumb"><img src="assets/images/03-jowar-flour.jpg" alt="Jowar flour thumbnail"></div>
+            <div class="package-weight">10 kg</div>
+            <div class="package-use">Around 400 rotis</div>
+            <div class="package-mrp">MRP Rs 1200</div>
+            <div class="package-price">Rs 1000</div>
+            <div class="package-save">Save Rs 200</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Jowar Flour - 10 kg', 'Rs 1000')">Buy Now</button>
+          </article>
+        </div>
+      </div>
+
+      <div class="product-panel" id="tab-wheat">
+        <div class="product-header">
+          <h3 class="product-title">Organic Whole Wheat Flour</h3>
+          <p class="product-meta">Made for soft chapatis, full meals, and everyday kitchen comfort with a fuller grain taste.</p>
+          <p class="delivery-note">Delivery charges extra</p>
+        </div>
+        <div class="packages-grid">
+          <article class="package-card">
+            <div class="package-thumb"><img src="assets/images/08-wheat-flour.jpg" alt="Whole wheat flour thumbnail"></div>
+            <div class="package-weight">1 kg</div>
+            <div class="package-use">Around 45 chapatis</div>
+            <div class="package-mrp">MRP Rs 100</div>
+            <div class="package-price">Rs 80</div>
+            <div class="package-save">Save Rs 20</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Wheat Flour - 1 kg', 'Rs 80')">Buy Now</button>
+          </article>
+          <article class="package-card">
+            <div class="package-thumb"><img src="assets/images/08-wheat-flour.jpg" alt="Whole wheat flour thumbnail"></div>
+            <div class="package-weight">2 kg</div>
+            <div class="package-use">Around 90 chapatis</div>
+            <div class="package-mrp">MRP Rs 200</div>
+            <div class="package-price">Rs 160</div>
+            <div class="package-save">Save Rs 40</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Wheat Flour - 2 kg', 'Rs 160')">Buy Now</button>
+          </article>
+          <article class="package-card popular">
+            <div class="badge">Popular</div>
+            <div class="package-thumb"><img src="assets/images/08-wheat-flour.jpg" alt="Whole wheat flour thumbnail"></div>
+            <div class="package-weight">3 kg</div>
+            <div class="package-use">Around 135 chapatis</div>
+            <div class="package-mrp">MRP Rs 300</div>
+            <div class="package-price">Rs 240</div>
+            <div class="package-save">Save Rs 60</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Wheat Flour - 3 kg', 'Rs 240')">Buy Now</button>
+          </article>
+          <article class="package-card">
+            <div class="package-thumb"><img src="assets/images/08-wheat-flour.jpg" alt="Whole wheat flour thumbnail"></div>
+            <div class="package-weight">5 kg</div>
+            <div class="package-use">Around 225 chapatis</div>
+            <div class="package-mrp">MRP Rs 400</div>
+            <div class="package-price">Rs 320</div>
+            <div class="package-save">Save Rs 80</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Wheat Flour - 5 kg', 'Rs 320')">Buy Now</button>
+          </article>
+          <article class="package-card">
+            <div class="package-thumb"><img src="assets/images/08-wheat-flour.jpg" alt="Whole wheat flour thumbnail"></div>
+            <div class="package-weight">10 kg</div>
+            <div class="package-use">Around 450 chapatis</div>
+            <div class="package-mrp">MRP Rs 800</div>
+            <div class="package-price">Rs 640</div>
+            <div class="package-save">Save Rs 160</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Wheat Flour - 10 kg', 'Rs 640')">Buy Now</button>
+          </article>
+        </div>
+      </div>
+
+      <div class="product-panel" id="tab-maize">
+        <div class="product-header">
+          <h3 class="product-title">Organic Maize (Corn) Flour</h3>
+          <p class="product-meta">Rustic, warm, and slightly sweet in character, designed here for comforting rotis and grain-forward meals.</p>
+          <p class="delivery-note">Delivery charges extra</p>
+        </div>
+        <div class="packages-grid">
+          <article class="package-card">
+            <div class="package-thumb"><img src="assets/images/11-maize-grains.jpg" alt="Maize grains thumbnail"></div>
+            <div class="package-weight">1 kg</div>
+            <div class="package-use">Around 45 rotis</div>
+            <div class="package-mrp">MRP Rs 50</div>
+            <div class="package-price">Rs 40</div>
+            <div class="package-save">Save Rs 10</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Maize Flour - 1 kg', 'Rs 40')">Buy Now</button>
+          </article>
+          <article class="package-card">
+            <div class="package-thumb"><img src="assets/images/11-maize-grains.jpg" alt="Maize grains thumbnail"></div>
+            <div class="package-weight">2 kg</div>
+            <div class="package-use">Around 90 rotis</div>
+            <div class="package-mrp">MRP Rs 100</div>
+            <div class="package-price">Rs 80</div>
+            <div class="package-save">Save Rs 20</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Maize Flour - 2 kg', 'Rs 80')">Buy Now</button>
+          </article>
+          <article class="package-card popular">
+            <div class="badge">Popular</div>
+            <div class="package-thumb"><img src="assets/images/11-maize-grains.jpg" alt="Maize grains thumbnail"></div>
+            <div class="package-weight">3 kg</div>
+            <div class="package-use">Around 135 rotis</div>
+            <div class="package-mrp">MRP Rs 150</div>
+            <div class="package-price">Rs 120</div>
+            <div class="package-save">Save Rs 30</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Maize Flour - 3 kg', 'Rs 120')">Buy Now</button>
+          </article>
+          <article class="package-card">
+            <div class="package-thumb"><img src="assets/images/11-maize-grains.jpg" alt="Maize grains thumbnail"></div>
+            <div class="package-weight">5 kg</div>
+            <div class="package-use">Around 225 rotis</div>
+            <div class="package-mrp">MRP Rs 220</div>
+            <div class="package-price">Rs 180</div>
+            <div class="package-save">Save Rs 40</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Maize Flour - 5 kg', 'Rs 180')">Buy Now</button>
+          </article>
+          <article class="package-card">
+            <div class="package-thumb"><img src="assets/images/11-maize-grains.jpg" alt="Maize grains thumbnail"></div>
+            <div class="package-weight">10 kg</div>
+            <div class="package-use">Around 450 rotis</div>
+            <div class="package-mrp">MRP Rs 450</div>
+            <div class="package-price">Rs 360</div>
+            <div class="package-save">Save Rs 90</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Maize Flour - 10 kg', 'Rs 360')">Buy Now</button>
+          </article>
+        </div>
+      </div>
+
+      <div class="product-panel" id="tab-ragi">
+        <div class="product-header">
+          <h3 class="product-title">Organic Ragi Flour</h3>
+          <p class="product-meta">Deep, nourishing, and grounded in everyday home cooking, presented for families who value wholesome grain meals.</p>
+          <p class="delivery-note">Delivery charges extra</p>
+        </div>
+        <div class="packages-grid">
+          <article class="package-card">
+            <div class="package-thumb"><img src="assets/images/12-ragi-grains.jpg" alt="Ragi grains thumbnail"></div>
+            <div class="package-weight">1 kg</div>
+            <div class="package-use">Around 45 servings</div>
+            <div class="package-mrp">MRP Rs 80</div>
+            <div class="package-price">Rs 60</div>
+            <div class="package-save">Save Rs 20</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Ragi Flour - 1 kg', 'Rs 60')">Buy Now</button>
+          </article>
+          <article class="package-card">
+            <div class="package-thumb"><img src="assets/images/12-ragi-grains.jpg" alt="Ragi grains thumbnail"></div>
+            <div class="package-weight">2 kg</div>
+            <div class="package-use">Around 90 servings</div>
+            <div class="package-mrp">MRP Rs 160</div>
+            <div class="package-price">Rs 120</div>
+            <div class="package-save">Save Rs 40</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Ragi Flour - 2 kg', 'Rs 120')">Buy Now</button>
+          </article>
+          <article class="package-card popular">
+            <div class="badge">Popular</div>
+            <div class="package-thumb"><img src="assets/images/12-ragi-grains.jpg" alt="Ragi grains thumbnail"></div>
+            <div class="package-weight">3 kg</div>
+            <div class="package-use">Around 135 servings</div>
+            <div class="package-mrp">MRP Rs 240</div>
+            <div class="package-price">Rs 180</div>
+            <div class="package-save">Save Rs 60</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Ragi Flour - 3 kg', 'Rs 180')">Buy Now</button>
+          </article>
+          <article class="package-card">
+            <div class="package-thumb"><img src="assets/images/12-ragi-grains.jpg" alt="Ragi grains thumbnail"></div>
+            <div class="package-weight">5 kg</div>
+            <div class="package-use">Around 225 servings</div>
+            <div class="package-mrp">MRP Rs 300</div>
+            <div class="package-price">Rs 250</div>
+            <div class="package-save">Save Rs 50</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Ragi Flour - 5 kg', 'Rs 250')">Buy Now</button>
+          </article>
+          <article class="package-card">
+            <div class="package-thumb"><img src="assets/images/12-ragi-grains.jpg" alt="Ragi grains thumbnail"></div>
+            <div class="package-weight">10 kg</div>
+            <div class="package-use">Around 450 servings</div>
+            <div class="package-mrp">MRP Rs 600</div>
+            <div class="package-price">Rs 500</div>
+            <div class="package-save">Save Rs 100</div>
+            <button class="btn-buy" type="button" onclick="openOrder('Ragi Flour - 10 kg', 'Rs 500')">Buy Now</button>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="contact fade-up" id="contact">
+    <div class="shell">
+      <div class="section-top">
+        <div class="eyebrow">Contact Us</div>
+        <h2 class="section-title">Get in Touch with PureJawari</h2>
+        <p class="section-copy">For order enquiries, product questions, and delivery support, you can reach PureJawari directly by phone or email.</p>
+      </div>
+      <div class="contact-grid">
+        <article class="contact-card">
+          <h3>Call Us</h3>
+          <p>Speak with us directly for orders, pack sizes, delivery questions, and everyday flour enquiries.</p>
+          <a class="contact-link" href="tel:+917090733111">7090733111</a>
+        </article>
+        <article class="contact-card">
+          <h3>Email Us</h3>
+          <p>Send us your order details or product questions, and we can get back to you with the next steps.</p>
+          <a class="contact-link" href="mailto:purejawari@gmail.com">purejawari@gmail.com</a>
+        </article>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="modal-overlay" id="orderModal">
+  <div class="modal">
+    <button class="modal-close" type="button" onclick="closeOrder()" aria-label="Close order form">x</button>
+    <h2>Place Your Order</h2>
+    <p>Fill in your details and PureJawari can confirm the order, delivery charge, and payment details with you.</p>
+    <div class="modal-summary">
+      <strong id="modalProduct">Jowar Flour - 1 kg</strong>
+      <span id="modalPrice">Rs 120</span>
+    </div>
+    <form onsubmit="submitOrder(event)">
+      <input id="customerName" type="text" placeholder="Your full name" required>
+      <input id="customerPhone" type="tel" placeholder="Phone or WhatsApp number" required>
+      <input id="customerCity" type="text" placeholder="City or town" required>
+      <input id="customerPin" type="text" placeholder="PIN code" required>
+      <textarea id="customerAddress" placeholder="Delivery address"></textarea>
+      <button class="modal-submit" type="submit">Confirm Interest</button>
+    </form>
+    <div class="modal-note">This is a simple order capture form for the webpage. You can later connect it to WhatsApp, forms, or payments.</div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <a class="brand" href="#top">Pure<span>Jawari</span></a>
+      <p>PureJawari is an established organic flour brand offering jowar, wheat, maize, and ragi flour with a focus on clean grain, slow milling, and the traditional taste families trust.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Products</h4>
+      <ul class="footer-links">
+        <li><a href="#" onclick="showTab('jowar'); document.getElementById('shop').scrollIntoView({behavior:'smooth'}); return false;">Jowar Flour</a></li>
+        <li><a href="#" onclick="showTab('wheat'); document.getElementById('shop').scrollIntoView({behavior:'smooth'}); return false;">Wheat Flour</a></li>
+        <li><a href="#" onclick="showTab('maize'); document.getElementById('shop').scrollIntoView({behavior:'smooth'}); return false;">Maize Flour</a></li>
+        <li><a href="#" onclick="showTab('ragi'); document.getElementById('shop').scrollIntoView({behavior:'smooth'}); return false;">Ragi Flour</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Company</h4>
+      <ul class="footer-links">
+        <li><a href="#" onclick="openInfo('about'); return false;">About Us</a></li>
+        <li><a href="#story">Our Story</a></li>
+        <li><a href="#organic">Why Organic</a></li>
+        <li><a href="#testimonials">Testimonials</a></li>
+        <li><a href="#contact">Contact Us</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Policies</h4>
+      <ul class="footer-links">
+        <li><a href="#" onclick="openInfo('terms'); return false;">Terms and Conditions</a></li>
+        <li><a href="#" onclick="openInfo('privacy'); return false;">Privacy Policy</a></li>
+        <li><a href="#" onclick="openInfo('refund'); return false;">Return and Refund Policy</a></li>
+        <li><a href="#" onclick="openInfo('shipping'); return false;">Shipping Policy</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>Copyright 2026 PureJawari. All rights reserved.</span>
+    <div class="footer-bottom-links">
+      <a href="#" onclick="openInfo('about'); return false;">About</a>
+      <a href="#" onclick="openInfo('terms'); return false;">Terms</a>
+      <a href="#" onclick="openInfo('privacy'); return false;">Privacy</a>
+      <a href="#" onclick="openInfo('refund'); return false;">Returns</a>
+      <a href="#contact">Contact</a>
+    </div>
+  </div>
+</footer>
+
+<div class="modal-overlay" id="infoModal">
+  <div class="modal modal-wide">
+    <button class="modal-close" type="button" onclick="closeInfo()" aria-label="Close information">x</button>
+    <div id="infoContent" class="legal-copy"></div>
+  </div>
+</div>
+
+<script>
+  function showTab(tab, trigger) {
+    document.querySelectorAll(".product-panel").forEach(function (panel) {
+      panel.classList.remove("active");
+    });
+    document.querySelectorAll(".tab-btn").forEach(function (button) {
+      button.classList.remove("active");
+    });
+    document.getElementById("tab-" + tab).classList.add("active");
+    if (trigger) {
+      trigger.classList.add("active");
+      return;
+    }
+    var targetButton = document.querySelector('.tab-btn[onclick*="' + tab + '"]');
+    if (targetButton) {
+      targetButton.classList.add("active");
+    }
+  }
+
+  function openOrder(product, price) {
+    document.getElementById("modalProduct").textContent = product;
+    document.getElementById("modalPrice").textContent = price;
+    document.getElementById("orderModal").classList.add("open");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeOrder() {
+    document.getElementById("orderModal").classList.remove("open");
+    document.body.style.overflow = "";
+  }
+
+  function submitOrder(event) {
+    event.preventDefault();
+    var name = document.getElementById("customerName").value.trim();
+    var phone = document.getElementById("customerPhone").value.trim();
+    var product = document.getElementById("modalProduct").textContent;
+    var price = document.getElementById("modalPrice").textContent;
+    alert(
+      "Thank you, " + name + "!\n\n" +
+      "Your interest for " + product + " (" + price + ") has been captured.\n\n" +
+      "PureJawari can contact you at " + phone + " to confirm delivery charges and next steps."
+    );
+    event.target.reset();
+    closeOrder();
+  }
+
+  var infoData = {
+    about:
+      '<h3>About Us</h3>' +
+      '<p>PureJawari is an established organic grain flour brand rooted in purity, slow milling, and the everyday food traditions of the Deccan plateau. The brand is built around jowar, wheat, maize, and ragi flour that feel honest, familiar, and deeply connected to home-style cooking.</p>' +
+      '<p>From rotis and chapatis to porridges and full meals, PureJawari is meant to celebrate the grain character, aroma, and warmth that traditional kitchens still value.</p>',
+    terms:
+      '<h3>Terms and Conditions</h3>' +
+      '<ul>' +
+      '<li>All orders are subject to confirmation by phone or WhatsApp.</li>' +
+      '<li>Displayed prices are in Indian Rupees and delivery charges are additional unless stated otherwise.</li>' +
+      '<li>Product appearance, grain shade, and flour texture may vary naturally from batch to batch.</li>' +
+      '<li>Availability of pack sizes may depend on stock and milling schedule.</li>' +
+      '</ul>' +
+      '<p>By placing an order enquiry through this site, the customer agrees to be contacted for order confirmation and fulfilment.</p>',
+    privacy:
+      '<h3>Privacy Policy</h3>' +
+      '<p>The site collects only the basic details required to respond to an order enquiry: name, phone number, city, PIN code, and optional address.</p>' +
+      '<p>This information should be used only for order confirmation, delivery coordination, and customer communication. It should not be sold or reused for unrelated marketing without consent.</p>',
+    refund:
+      '<h3>Return and Refund Policy</h3>' +
+      '<p>If a product is delivered damaged, tampered with, or significantly different from the order, the customer may request support within 48 hours of delivery.</p>' +
+      '<p>Refunds or replacements can be handled after order verification. Natural variation in grain color, aroma, or texture is not considered a defect when the product remains safe and correctly supplied.</p>',
+    shipping:
+      '<h3>Shipping Policy</h3>' +
+      '<p>Orders may be packed after confirmation and dispatched as per the production schedule. Delivery charges are based on weight and destination PIN code.</p>' +
+      '<p>Processing time, courier partner, and estimated delivery window can be shared at confirmation stage. Airtight packaging is recommended for fresh flour dispatch.</p>'
+  };
+
+  function openInfo(type) {
+    document.getElementById("infoContent").innerHTML = infoData[type] || "<p>Information coming soon.</p>";
+    document.getElementById("infoModal").classList.add("open");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeInfo() {
+    document.getElementById("infoModal").classList.remove("open");
+    document.body.style.overflow = "";
+  }
+
+  document.getElementById("orderModal").addEventListener("click", function (event) {
+    if (event.target === this) {
+      closeOrder();
+    }
+  });
+
+  document.getElementById("infoModal").addEventListener("click", function (event) {
+    if (event.target === this) {
+      closeInfo();
+    }
+  });
+
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add("visible");
+      }
+    });
+  }, { threshold: 0.12 });
+
+  document.querySelectorAll(".fade-up").forEach(function (element) {
+    observer.observe(element);
+  });
+
+  var heroTrack = document.getElementById("heroTrack");
+  var heroDots = document.getElementById("heroDots");
+  var heroPrev = document.getElementById("heroPrev");
+  var heroNext = document.getElementById("heroNext");
+  var heroSlides = heroTrack ? Array.from(heroTrack.querySelectorAll(".hero-slide")) : [];
+  var heroIndex = 0;
+  var heroTimer = null;
+
+  function renderHeroSlide(index) {
+    if (!heroSlides.length) {
+      return;
+    }
+    heroIndex = (index + heroSlides.length) % heroSlides.length;
+    heroTrack.style.transform = "translateX(-" + (heroIndex * 100) + "%)";
+    heroSlides.forEach(function (slide, slideIndex) {
+      slide.setAttribute("aria-hidden", slideIndex === heroIndex ? "false" : "true");
+    });
+    Array.from(heroDots.querySelectorAll(".hero-dot")).forEach(function (dot, dotIndex) {
+      var isActive = dotIndex === heroIndex;
+      dot.classList.toggle("active", isActive);
+      dot.setAttribute("aria-current", isActive ? "true" : "false");
+    });
+  }
+
+  function stopHeroAutoplay() {
+    if (heroTimer) {
+      clearInterval(heroTimer);
+      heroTimer = null;
+    }
+  }
+
+  function startHeroAutoplay() {
+    if (heroSlides.length < 2) {
+      return;
+    }
+    stopHeroAutoplay();
+    heroTimer = setInterval(function () {
+      renderHeroSlide(heroIndex + 1);
+    }, 4500);
+  }
+
+  if (heroSlides.length) {
+    heroSlides.forEach(function (_, index) {
+      var dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = "hero-dot";
+      dot.setAttribute("aria-label", "Go to slide " + (index + 1));
+      dot.addEventListener("click", function () {
+        renderHeroSlide(index);
+        startHeroAutoplay();
+      });
+      heroDots.appendChild(dot);
+    });
+
+    heroPrev.addEventListener("click", function () {
+      renderHeroSlide(heroIndex - 1);
+      startHeroAutoplay();
+    });
+
+    heroNext.addEventListener("click", function () {
+      renderHeroSlide(heroIndex + 1);
+      startHeroAutoplay();
+    });
+
+    var heroCarousel = document.getElementById("heroCarousel");
+
+    heroCarousel.addEventListener("mouseenter", stopHeroAutoplay);
+    heroCarousel.addEventListener("mouseleave", startHeroAutoplay);
+    heroCarousel.addEventListener("focusin", stopHeroAutoplay);
+    heroCarousel.addEventListener("focusout", function (event) {
+      if (heroCarousel.contains(event.relatedTarget)) {
+        return;
+      }
+      startHeroAutoplay();
+    });
+
+    renderHeroSlide(0);
+    startHeroAutoplay();
+  }
+</script>
+</body>
+</html>

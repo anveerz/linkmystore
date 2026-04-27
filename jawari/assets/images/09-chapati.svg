@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#d8b88c"/>
+  <circle cx="600" cy="430" r="235" fill="#f0d7ae"/>
+  <circle cx="600" cy="430" r="205" fill="#f7e6ca"/>
+  <path d="M420 445 C520 390 690 385 800 445 C700 515 520 520 420 445 Z" fill="#c99b61" opacity="0.56"/>
+  <text x="140" y="120" fill="#614126" font-family="Arial, sans-serif" font-size="68" font-weight="700">CHAPATI</text>
+  <text x="142" y="180" fill="#7c5d43" font-family="Arial, sans-serif" font-size="28">Soft chapati with a warm grain finish</text>
+</svg>

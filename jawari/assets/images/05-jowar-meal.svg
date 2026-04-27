@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#efe1c6"/>
+  <circle cx="600" cy="420" r="250" fill="#8d613c"/>
+  <circle cx="600" cy="420" r="215" fill="#f4eee1"/>
+  <circle cx="520" cy="365" r="70" fill="#d07b3c"/>
+  <circle cx="690" cy="375" r="70" fill="#749055"/>
+  <circle cx="525" cy="525" r="70" fill="#cfb17f"/>
+  <circle cx="690" cy="530" r="70" fill="#c44532"/>
+  <text x="72" y="120" fill="#5f3b22" font-family="Arial, sans-serif" font-size="68" font-weight="700">JOWAR MEAL</text>
+  <text x="74" y="180" fill="#87684e" font-family="Arial, sans-serif" font-size="28">A familiar North Karnataka meal plate</text>
+</svg>

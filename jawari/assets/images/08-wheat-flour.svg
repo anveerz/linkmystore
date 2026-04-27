@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#f6ead2"/>
+  <rect x="150" y="520" width="900" height="160" rx="28" fill="#7c5a3f"/>
+  <circle cx="600" cy="420" r="175" fill="#fffaf0"/>
+  <circle cx="600" cy="420" r="115" fill="#f4e8ce"/>
+  <text x="116" y="125" fill="#5c3921" font-family="Arial, sans-serif" font-size="68" font-weight="700">WHEAT FLOUR</text>
+  <text x="118" y="185" fill="#7d5d47" font-family="Arial, sans-serif" font-size="28">Fresh flour for soft everyday chapatis</text>
+</svg>

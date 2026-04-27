@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f1d48d"/>
+      <stop offset="100%" stop-color="#b47f3f"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <rect y="500" width="1200" height="300" fill="#c99a4d"/>
+  <path d="M0 600 C150 540 320 650 500 590 S870 540 1040 600 S1140 625 1200 605 L1200 800 L0 800 Z" fill="#ddb768"/>
+  <text x="88" y="122" fill="#fff7e7" font-family="Arial, sans-serif" font-size="68" font-weight="700">WHEAT FIELD</text>
+  <text x="90" y="182" fill="#fff0cf" font-family="Arial, sans-serif" font-size="28">Golden grain ready for milling</text>
+</svg>

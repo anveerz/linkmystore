@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#f1e4ce"/>
+  <circle cx="600" cy="420" r="255" fill="#8f6845"/>
+  <circle cx="600" cy="420" r="220" fill="#f7f0e4"/>
+  <circle cx="505" cy="360" r="72" fill="#be7a37"/>
+  <circle cx="690" cy="360" r="72" fill="#70955a"/>
+  <circle cx="500" cy="535" r="72" fill="#d8bf94"/>
+  <circle cx="695" cy="535" r="72" fill="#b63a2d"/>
+  <text x="82" y="122" fill="#5e3a21" font-family="Arial, sans-serif" font-size="68" font-weight="700">CHAPATI MEAL</text>
+  <text x="84" y="182" fill="#7f6047" font-family="Arial, sans-serif" font-size="28">Chapati served with a complete meal</text>
+</svg>

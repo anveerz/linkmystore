@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#efe1c8"/>
+  <rect x="130" y="510" width="940" height="180" rx="28" fill="#926b4d"/>
+  <circle cx="600" cy="420" r="180" fill="#fff7e6"/>
+  <circle cx="600" cy="420" r="120" fill="#f4e4c8"/>
+  <text x="120" y="125" fill="#5f3920" font-family="Arial, sans-serif" font-size="68" font-weight="700">JOWAR FLOUR</text>
+  <text x="122" y="185" fill="#7a5c44" font-family="Arial, sans-serif" font-size="28">Stone-milled with natural grain texture</text>
+</svg>

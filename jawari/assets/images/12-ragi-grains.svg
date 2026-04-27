@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#6c4d49"/>
+  <ellipse cx="600" cy="440" rx="350" ry="200" fill="#8f6a62"/>
+  <ellipse cx="600" cy="450" rx="295" ry="155" fill="#b08a82"/>
+  <circle cx="470" cy="430" r="18" fill="#5a403c"/>
+  <circle cx="540" cy="395" r="18" fill="#624742"/>
+  <circle cx="610" cy="450" r="18" fill="#59413d"/>
+  <circle cx="680" cy="395" r="18" fill="#664844"/>
+  <circle cx="750" cy="445" r="18" fill="#573f3a"/>
+  <circle cx="530" cy="505" r="18" fill="#604440"/>
+  <circle cx="690" cy="505" r="18" fill="#614542"/>
+  <text x="120" y="125" fill="#fff3ef" font-family="Arial, sans-serif" font-size="68" font-weight="700">RAGI GRAINS</text>
+  <text x="122" y="185" fill="#ead8d5" font-family="Arial, sans-serif" font-size="28">Nourishing grain for everyday strength</text>
+</svg>

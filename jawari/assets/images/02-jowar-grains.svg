@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#7a593f"/>
+  <ellipse cx="600" cy="440" rx="360" ry="210" fill="#d7b07a"/>
+  <ellipse cx="600" cy="460" rx="300" ry="160" fill="#f0d6a8"/>
+  <circle cx="470" cy="440" r="22" fill="#8c6c4d"/>
+  <circle cx="540" cy="420" r="22" fill="#94714f"/>
+  <circle cx="610" cy="450" r="22" fill="#8f6a43"/>
+  <circle cx="680" cy="420" r="22" fill="#9a744e"/>
+  <circle cx="750" cy="450" r="22" fill="#8a623e"/>
+  <text x="100" y="130" fill="#fff8ef" font-family="Arial, sans-serif" font-size="68" font-weight="700">JOWAR GRAINS</text>
+  <text x="102" y="190" fill="#f4e2c7" font-family="Arial, sans-serif" font-size="28">Clean grain with full-bodied aroma</text>
+</svg>

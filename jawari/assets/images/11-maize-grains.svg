@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#be8d32"/>
+  <rect x="220" y="220" width="760" height="360" rx="180" fill="#f5d56c"/>
+  <circle cx="460" cy="400" r="28" fill="#e3b73f"/>
+  <circle cx="530" cy="345" r="28" fill="#e3b73f"/>
+  <circle cx="600" cy="420" r="28" fill="#e3b73f"/>
+  <circle cx="670" cy="345" r="28" fill="#e3b73f"/>
+  <circle cx="740" cy="400" r="28" fill="#e3b73f"/>
+  <circle cx="530" cy="490" r="28" fill="#e3b73f"/>
+  <circle cx="670" cy="490" r="28" fill="#e3b73f"/>
+  <text x="100" y="120" fill="#fff8e5" font-family="Arial, sans-serif" font-size="68" font-weight="700">MAIZE GRAINS</text>
+  <text x="102" y="180" fill="#fff0bf" font-family="Arial, sans-serif" font-size="28">Rustic grain for hearty comfort food</text>
+</svg>

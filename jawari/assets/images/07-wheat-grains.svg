@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#866245"/>
+  <ellipse cx="600" cy="440" rx="350" ry="200" fill="#dcb16c"/>
+  <ellipse cx="600" cy="450" rx="290" ry="150" fill="#f0cf96"/>
+  <path d="M430 410 C470 360 520 350 560 395 C520 445 470 455 430 410 Z" fill="#b98b50"/>
+  <path d="M560 420 C600 370 650 360 690 405 C650 455 600 465 560 420 Z" fill="#c99957"/>
+  <path d="M690 420 C730 370 780 360 820 405 C780 455 730 465 690 420 Z" fill="#b58147"/>
+  <text x="92" y="120" fill="#fff8ef" font-family="Arial, sans-serif" font-size="68" font-weight="700">WHEAT GRAINS</text>
+  <text x="94" y="180" fill="#f0dfc6" font-family="Arial, sans-serif" font-size="28">Whole wheat with natural sweetness</text>
+</svg>
