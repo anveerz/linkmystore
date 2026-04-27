@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getCreatorPlanSnapshot } from '@/lib/plan-gate'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
 
 export async function POST(request: Request) {
@@ -25,7 +26,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Creator not found' }, { status: 404 })
     }
 
-    if (creator.plan !== 'pro') {
+    const planSnapshot = await getCreatorPlanSnapshot(creator.id)
+
+    if (planSnapshot.effectivePlan !== 'pro') {
       return NextResponse.json({ error: 'WhatsApp notifications are available on Pro plan only' }, { status: 403 })
     }
 

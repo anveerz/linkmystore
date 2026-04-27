@@ -52,6 +52,8 @@ export default function SettingsPage() {
   const [selectedTheme, setSelectedTheme] = useState('default')
   const [accentColor, setAccentColor] = useState('#E8651A')
   const [announcementText, setAnnouncementText] = useState('')
+  const [showBranding, setShowBranding] = useState(true)
+  const [seoEnabled, setSeoEnabled] = useState(false)
 
   // Social Links
   const [instagram, setInstagram] = useState('')
@@ -98,6 +100,9 @@ export default function SettingsPage() {
         setSelectedTheme(settingsData.theme || 'default')
         setAccentColor(settingsData.accent_color || '#E8651A')
         setAnnouncementText(settingsData.announcement_text || '')
+        const isProPlan = creatorData.plan === 'pro'
+        setShowBranding(isProPlan ? settingsData.show_branding !== false : true)
+        setSeoEnabled(isProPlan ? settingsData.seo_enabled === true : false)
 
         if (settingsData.social_links) {
           setInstagram(settingsData.social_links.instagram || '')
@@ -107,6 +112,9 @@ export default function SettingsPage() {
         } else {
           setWhatsapp(creatorData.whatsapp_number || '')
         }
+      } else {
+        setShowBranding(creatorData.plan === 'pro' ? false : true)
+        setSeoEnabled(creatorData.plan === 'pro')
       }
     } catch (error) {
       console.error('Error fetching settings:', error)
@@ -240,12 +248,15 @@ export default function SettingsPage() {
     setSaving('appearance')
 
     try {
+      const isProPlan = creator.plan === 'pro'
       const { error } = await supabase
         .from('store_settings')
         .update({
           theme: selectedTheme,
           accent_color: accentColor,
           announcement_text: announcementText.trim() || null,
+          show_branding: isProPlan ? showBranding : true,
+          seo_enabled: isProPlan ? seoEnabled : false,
           updated_at: new Date().toISOString(),
         })
         .eq('creator_id', creator.id)
@@ -313,7 +324,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E8651A]"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4f7cff]"></div>
       </div>
     )
   }
@@ -406,7 +417,7 @@ export default function SettingsPage() {
           <h2 className="font-semibold">Bank Details</h2>
         </div>
         <p className="text-sm text-gray-500 mb-6">
-          Add your bank details to receive weekly payouts
+          Add payment details for settlement and manual UPI configuration
         </p>
 
         {/* Tabs */}
@@ -505,7 +516,7 @@ export default function SettingsPage() {
                 placeholder="yourname@upi"
               />
               <p className="text-xs text-gray-400 mt-1">
-                We&apos;ll send payouts directly to your UPI ID
+                This UPI ID is used for manual UPI checkout mode
               </p>
             </div>
           )}
@@ -618,6 +629,71 @@ export default function SettingsPage() {
             </p>
           </div>
 
+          <div className="border border-gray-200 rounded-xl p-4 space-y-4">
+            <p className="text-sm font-medium">Store Visibility & Branding</p>
+
+            <div className={`flex items-center justify-between gap-4 ${creator?.plan !== 'pro' ? 'opacity-70' : ''}`}>
+              <div>
+                <p className="text-sm font-medium">Show &quot;Powered by LinkMyStore&quot;</p>
+                <p className="text-xs text-gray-500">Turn this off to remove LinkMyStore branding from your storefront.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (creator?.plan !== 'pro') {
+                    promptUpgrade('Remove LinkMyStore branding')
+                    return
+                  }
+                  setShowBranding((current) => !current)
+                }}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  showBranding ? 'bg-[#E8651A]' : 'bg-gray-300'
+                }`}
+                aria-label="Toggle storefront branding"
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                    showBranding ? 'translate-x-5' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className={`flex items-center justify-between gap-4 ${creator?.plan !== 'pro' ? 'opacity-70' : ''}`}>
+              <div>
+                <p className="text-sm font-medium">Enable SEO indexing</p>
+                <p className="text-xs text-gray-500">Allow Google and other search engines to index your store pages.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (creator?.plan !== 'pro') {
+                    promptUpgrade('SEO enabled store pages')
+                    return
+                  }
+                  setSeoEnabled((current) => !current)
+                }}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  seoEnabled ? 'bg-[#E8651A]' : 'bg-gray-300'
+                }`}
+                aria-label="Toggle store SEO indexing"
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                    seoEnabled ? 'translate-x-5' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {(creator?.plan || 'free') === 'free' && (
+              <Link href="/dashboard/plan" className="inline-flex items-center gap-1.5 text-xs text-[#E8651A] font-medium hover:underline">
+                <Crown className="w-3.5 h-3.5" />
+                Upgrade to Pro to remove branding and enable SEO
+              </Link>
+            )}
+          </div>
+
           <button
             onClick={saveAppearance}
             disabled={saving === 'appearance'}
@@ -723,5 +799,3 @@ export default function SettingsPage() {
     </div>
   )
 }
-
-

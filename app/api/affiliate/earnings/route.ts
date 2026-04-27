@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { PLAN_FEATURES, type PlanType } from '@/lib/constants'
+import { getCreatorPlanSnapshot } from '@/lib/plan-gate'
 
 export async function GET() {
   try {
@@ -25,7 +26,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Creator not found' }, { status: 404 })
     }
 
-    const plan = (creator.plan as PlanType) || 'free'
+    const planSnapshot = await getCreatorPlanSnapshot(creator.id)
+    const plan = (planSnapshot.effectivePlan as PlanType) || 'free'
     const commissionSplit = PLAN_FEATURES[plan].affiliateCommissionSplit
 
     const [{ data: clicks }, { data: earnings }] = await Promise.all([

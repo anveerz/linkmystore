@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { Mail, Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, Circle } from 'lucide-react'
@@ -11,6 +11,53 @@ type Mode = 'login' | 'signup'
 type AuthMethod = 'google' | 'email' | null
 type PasswordStrength = 'weak' | 'fair' | 'strong' | null
 type Step = 'form' | 'verify'
+
+function normalizeOrigin(rawUrl: string | null | undefined): string | null {
+  const value = (rawUrl || '').trim()
+  if (!value) return null
+  try {
+    return new URL(value).origin
+  } catch {
+    return null
+  }
+}
+
+function isLocalOrigin(origin: string): boolean {
+  try {
+    const host = new URL(origin).hostname.toLowerCase()
+    return host === 'localhost' || host === '127.0.0.1'
+  } catch {
+    return false
+  }
+}
+
+function resolveAuthRedirectBase() {
+  const configuredOrigin = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL)
+  const isDev = process.env.NODE_ENV !== 'production'
+
+  if (typeof window === 'undefined') {
+    if (isDev) return 'http://localhost:3000'
+    if (configuredOrigin && !isLocalOrigin(configuredOrigin)) {
+      return configuredOrigin
+    }
+    return configuredOrigin || 'https://linkmystore.in'
+  }
+
+  const runtimeOrigin = window.location.origin
+  if (isDev) {
+    return runtimeOrigin
+  }
+
+  if (isLocalOrigin(runtimeOrigin)) {
+    return runtimeOrigin
+  }
+
+  if (configuredOrigin && !isLocalOrigin(configuredOrigin)) {
+    return configuredOrigin
+  }
+
+  return runtimeOrigin
+}
 
 function getPasswordStrength(password: string): PasswordStrength {
   if (!password) return null
@@ -37,8 +84,10 @@ function getPasswordChecks(password: string) {
   ]
 }
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const [checkingSession, setCheckingSession] = useState(true)
   const [mode, setMode] = useState<Mode>('login')
   const [authMethod, setAuthMethod] = useState<AuthMethod>(null)
   const [email, setEmail] = useState('')
@@ -56,6 +105,18 @@ export default function LoginPage() {
   const passwordStrength = getPasswordStrength(password)
   const passwordChecks = getPasswordChecks(password)
   const passwordsMatch = password && confirmPassword && password === confirmPassword
+  const authError = searchParams.get('error')
+  const authErrorMessage = authError
+    ? ({
+        google_not_configured: 'Google sign-in is not configured. Please contact support.',
+        google_auth_failed: 'Google sign-in failed. Please try again.',
+        google_exchange_failed: 'Google verification failed. Please try again.',
+        google_session_failed: 'Google session setup failed. Please try again.',
+        google_user_missing: 'Could not load your user profile. Please try again.',
+        auth_failed: 'Authentication failed. Please try again.',
+      } satisfies Record<string, string>)[authError] || 'Authentication failed. Please try again.'
+    : null
+  const displayError = error || authErrorMessage
 
   // Resend cooldown timer
   useEffect(() => {
@@ -65,19 +126,49 @@ export default function LoginPage() {
     }
   }, [resendCooldown])
 
+  useEffect(() => {
+    let isMounted = true
+
+    const redirectSignedInUser = async () => {
+      try {
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (!user) return
+
+        const { data: creator } = await supabase
+          .from('creators')
+          .select('id')
+          .eq('user_id', user.id)
+          .single()
+
+        router.replace(creator ? '/dashboard' : '/onboarding')
+      } finally {
+        if (isMounted) {
+          setCheckingSession(false)
+        }
+      }
+    }
+
+    void redirectSignedInUser()
+
+    return () => {
+      isMounted = false
+    }
+  }, [router])
+
   const handleGoogleSignIn = async () => {
-    setGoogleLoading(true)
-    setError(null)
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-    if (error) {
-      toast.error('Failed to connect with Google. Please try again.')
+    try {
+      setGoogleLoading(true)
+      setError(null)
+      const nextPath = '/dashboard'
+      const params = new URLSearchParams({ next: nextPath })
+      window.location.assign(`/api/auth/google/start?${params.toString()}`)
+    } catch {
       setGoogleLoading(false)
+      toast.error('Failed to connect with Google. Please try again.')
     }
   }
 
@@ -133,11 +224,12 @@ export default function LoginPage() {
     setError(null)
 
     const supabase = createClient()
+    const redirectBase = resolveAuthRedirectBase()
     const { error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${redirectBase}/auth/callback`,
       },
     })
 
@@ -179,8 +271,9 @@ export default function LoginPage() {
     setError(null)
 
     const supabase = createClient()
+    const redirectBase = resolveAuthRedirectBase()
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
+      redirectTo: `${redirectBase}/auth/reset-password`,
     })
 
     if (error) {
@@ -213,6 +306,17 @@ export default function LoginPage() {
   const switchToSignup = () => {
     setMode('signup')
     resetState()
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="flex min-h-[420px] items-center justify-center">
+        <div className="inline-flex items-center gap-3 rounded-2xl border border-[#d9e1f7] bg-white/80 px-5 py-4 text-sm font-medium text-[#425172] shadow-[0_20px_40px_rgba(79,124,255,0.08)]">
+          <Loader2 className="h-4 w-4 animate-spin text-[#4f7cff]" />
+          Checking your account...
+        </div>
+      </div>
+    )
   }
 
   // Forgot Password Screen
@@ -271,11 +375,11 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {error && (
+        {displayError && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-3 mt-4">
             <p className="text-sm text-red-600 flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />
-              {error}
+              {displayError}
             </p>
           </div>
         )}
@@ -398,11 +502,11 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {error && (
+        {displayError && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-3 mt-4">
             <p className="text-sm text-red-600 flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />
-              {error}
+              {displayError}
             </p>
           </div>
         )}
@@ -548,11 +652,11 @@ export default function LoginPage() {
           )}
         </div>
 
-        {error && (
+        {displayError && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-3 mt-4">
             <p className="text-sm text-red-600 flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />
-              {error}
+              {displayError}
             </p>
           </div>
         )}
@@ -656,5 +760,26 @@ export default function LoginPage() {
         <Link href="/privacy" className="underline hover:text-[#3D2176]">Privacy Policy</Link>
       </p>
     </div>
+  )
+}
+
+function LoginPageFallback() {
+  return (
+    <div className="animate-in">
+      <div className="flex min-h-[240px] items-center justify-center">
+        <div className="flex items-center gap-3 rounded-2xl border border-[#E5E5EC] bg-white/80 px-5 py-4 text-sm text-[#555567] shadow-sm">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading sign-in page...
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
   )
 }

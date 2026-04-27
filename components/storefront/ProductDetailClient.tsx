@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import VariantSelector from './VariantSelector'
-import type { Variant, DigitalSubtype } from '@/types'
+import type { Variant, DigitalSubtype, StoreSettings } from '@/types'
+import { getStorefrontTheme } from '@/lib/storefront-theme'
 
 interface ProductDetailClientProps {
   variants: Variant[]
@@ -16,6 +17,10 @@ interface ProductDetailClientProps {
   isAffiliate?: boolean
   affiliatePlatform?: string | null
   affiliateTaggedUrl?: string | null
+  isCreatorDeal?: boolean
+  dealExternalUrl?: string | null
+  dealLabel?: string | null
+  theme?: StoreSettings['theme']
 }
 
 function getPlatformLabel(platform?: string | null) {
@@ -38,10 +43,21 @@ function getCtaConfig(
   price: number,
   accentColor: string,
   isAffiliate: boolean,
-  affiliatePlatform?: string | null
+  affiliatePlatform?: string | null,
+  isCreatorDeal?: boolean,
+  dealLabel?: string | null
 ): { label: string; href?: string; disabled: boolean; bg: string } {
   if (isOutOfStock) {
     return { label: 'Out of Stock', disabled: true, bg: '#9ca3af' }
+  }
+
+  if (isCreatorDeal) {
+    return {
+      label: dealLabel ? `Open ${dealLabel} Deal` : 'Open Must-Buy Deal',
+      href: 'creator_deal_external',
+      disabled: false,
+      bg: 'linear-gradient(135deg, #E8651A 0%, #C2410C 100%)',
+    }
   }
 
   if (isAffiliate) {
@@ -130,9 +146,14 @@ export default function ProductDetailClient({
   isAffiliate = false,
   affiliatePlatform,
   affiliateTaggedUrl,
+  isCreatorDeal = false,
+  dealExternalUrl,
+  dealLabel,
+  theme,
 }: ProductDetailClientProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [currentPrice, setCurrentPrice] = useState(basePrice)
+  const themeStyles = getStorefrontTheme(theme)
 
   const handleSelect = (index: number) => {
     setSelectedIndex(index)
@@ -151,11 +172,20 @@ export default function ProductDetailClient({
     currentPrice,
     accentColor,
     isAffiliate,
-    affiliatePlatform
+    affiliatePlatform,
+    isCreatorDeal,
+    dealLabel
   )
 
   const handleClick = async () => {
     if (cta.disabled || !cta.href) return
+
+    if (isCreatorDeal) {
+      if (dealExternalUrl) {
+        window.open(dealExternalUrl, '_blank', 'noopener,noreferrer')
+      }
+      return
+    }
 
     if (isAffiliate) {
       try {
@@ -189,7 +219,7 @@ export default function ProductDetailClient({
 
   return (
     <>
-      {variants && variants.length > 0 && !isAffiliate && (
+      {variants && variants.length > 0 && !isAffiliate && !isCreatorDeal && (
         <VariantSelector
           variants={variants}
           accentColor={accentColor}
@@ -198,7 +228,7 @@ export default function ProductDetailClient({
         />
       )}
 
-      <div className="sticky bottom-0 bg-white border-t border-gray-100 px-4 py-4 z-10">
+      <div className={`sticky bottom-0 px-4 py-4 z-10 ${themeStyles.sticky}`}>
         <div className="max-w-lg mx-auto">
           <button
             onClick={handleClick}
@@ -211,11 +241,13 @@ export default function ProductDetailClient({
 
           <div className="flex items-center justify-center gap-4 mt-3">
             {isAffiliate ? (
-              <span className="text-[11px] text-gray-400">External purchase on partner platform</span>
+              <span className={`text-[11px] ${themeStyles.mutedText}`}>External purchase on partner platform</span>
+            ) : isCreatorDeal ? (
+              <span className={`text-[11px] ${themeStyles.mutedText}`}>External purchase with coupon support</span>
             ) : isLeadMagnet ? (
-              <span className="text-[11px] text-gray-400">Free - No payment required</span>
+              <span className={`text-[11px] ${themeStyles.mutedText}`}>Free - No payment required</span>
             ) : (
-              <span className="text-[11px] text-gray-400">UPI-first checkout</span>
+              <span className={`text-[11px] ${themeStyles.mutedText}`}>PG auto-confirmation or manual UPI mode</span>
             )}
           </div>
         </div>
@@ -223,3 +255,4 @@ export default function ProductDetailClient({
     </>
   )
 }
+

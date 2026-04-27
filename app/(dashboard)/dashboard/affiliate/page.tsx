@@ -59,7 +59,7 @@ export default function AffiliateDashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
-        <Loader2 className="w-7 h-7 animate-spin text-[#E8651A]" />
+        <Loader2 className="w-7 h-7 animate-spin text-[#4f7cff]" />
       </div>
     )
   }

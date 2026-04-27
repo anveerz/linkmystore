@@ -8,27 +8,52 @@ jest.mock('@/lib/supabase/admin', () => ({
   createAdminClient: jest.fn(),
 }))
 
+jest.mock('@/lib/payments/manual-upi-service', () => ({
+  verifyUpiOrderBySeller: jest.fn(),
+}))
+
+jest.mock('@/lib/payments/order-action-tokens', () => ({
+  verifyOrderActionToken: jest.fn(),
+}))
+
 const { createClient } = jest.requireMock('@/lib/supabase/server') as {
   createClient: jest.Mock
 }
 const { createAdminClient } = jest.requireMock('@/lib/supabase/admin') as {
   createAdminClient: jest.Mock
 }
+const { verifyUpiOrderBySeller } = jest.requireMock('@/lib/payments/manual-upi-service') as {
+  verifyUpiOrderBySeller: jest.Mock
+}
+const { verifyOrderActionToken } = jest.requireMock('@/lib/payments/order-action-tokens') as {
+  verifyOrderActionToken: jest.Mock
+}
 
-describe('POST /api/orders/[id]/verify-payment', () => {
+describe('POST /api/orders/[id]/verify-payment (compatibility)', () => {
+  const originalEnv = { ...process.env }
+
   beforeEach(() => {
     jest.clearAllMocks()
+    process.env = { ...originalEnv }
   })
 
-  async function post(orderId: string) {
+  afterAll(() => {
+    process.env = originalEnv
+  })
+
+  async function post(orderId: string, body: Record<string, unknown> = {}, headers: Record<string, string> = {}) {
     const { POST } = await import('@/app/api/orders/[id]/verify-payment/route')
     return POST(
-      new Request(`http://localhost/api/orders/${orderId}/verify-payment`, { method: 'POST' }),
+      new Request(`http://localhost/api/orders/${orderId}/verify-payment`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      }),
       { params: Promise.resolve({ id: orderId }) }
     )
   }
 
-  it('requires authenticated seller', async () => {
+  it('requires authenticated seller when not using automation token', async () => {
     createClient.mockResolvedValue({
       auth: { getUser: jest.fn().mockResolvedValue({ data: { user: null } }) },
     })
@@ -38,146 +63,84 @@ describe('POST /api/orders/[id]/verify-payment', () => {
     expect(response.status).toBe(401)
   })
 
-  it('enforces seller ownership and payment proof requirement', async () => {
-    createClient.mockResolvedValue({
-      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'u1' } } }) },
-    })
+  it('supports automation mode with valid token and creator id', async () => {
+    process.env.V3_AUTOMATION_TOKEN = 'secret_token'
+    verifyUpiOrderBySeller.mockResolvedValue({ success: true, message: 'ok' })
 
-    const wrongOwnerDb = new SupabaseQueryMock({
-      creators: { selectSingle: [{ data: { id: 'creator_a' } }] },
-      orders: {
-        selectSingle: [
-          {
-            data: {
-              id: 'o2',
-              creator_id: 'creator_b',
-              payment_method: 'upi_direct',
-              payment_status: 'pending',
-              payment_verified: false,
-            },
-          },
-        ],
-      },
-    })
-    createAdminClient.mockReturnValue(wrongOwnerDb)
-
-    const wrongOwner = await post('o2')
-    expect(wrongOwner.status).toBe(403)
-
-    const noProofDb = new SupabaseQueryMock({
-      creators: { selectSingle: [{ data: { id: 'creator_a' } }] },
-      orders: {
-        selectSingle: [
-          {
-            data: {
-              id: 'o3',
-              creator_id: 'creator_a',
-              payment_method: 'upi_direct',
-              payment_status: 'pending',
-              payment_verified: false,
-              product_id: 'p1',
-              amount: 1000,
-              upi_reference_number: null,
-              payment_screenshot_url: null,
-            },
-          },
-        ],
-      },
-    })
-    createAdminClient.mockReturnValue(noProofDb)
-
-    const noProof = await post('o3')
-    expect(noProof.status).toBe(400)
-  })
-
-  it('marks payment paid, updates stock, and logs analytics on success', async () => {
-    createClient.mockResolvedValue({
-      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'u1' } } }) },
-    })
-
-    const db = new SupabaseQueryMock({
-      creators: { selectSingle: [{ data: { id: 'creator_1' } }] },
-      orders: {
-        selectSingle: [
-          {
-            data: {
-              id: 'o4',
-              creator_id: 'creator_1',
-              payment_method: 'upi_direct',
-              payment_status: 'pending',
-              payment_verified: false,
-              product_id: 'product_1',
-              amount: 19900,
-              upi_reference_number: '123456789012',
-              payment_screenshot_url: null,
-            },
-          },
-        ],
-        update: [{ data: null }],
-      },
-      products: {
-        selectSingle: [{ data: { stock: 4 } }],
-        update: [{ data: null }],
-      },
-      analytics_events: {
-        insert: [{ data: null }],
-      },
-    })
-    createAdminClient.mockReturnValue(db)
-
-    const response = await post('o4')
+    const response = await post(
+      'o2',
+      { creator_id: 'creator_1', upi_reference_number: '123456789012' },
+      { 'x-lms-automation-token': 'secret_token' }
+    )
     const body = await response.json()
 
     expect(response.status).toBe(200)
     expect(body.success).toBe(true)
-
-    const orderUpdate = db.calls.find((call) => call.table === 'orders' && call.operation === 'update')
-    expect(orderUpdate?.payload).toEqual(
-      expect.objectContaining({
-        payment_status: 'paid',
-        payment_verified: true,
-      })
-    )
-
-    const productUpdate = db.calls.find(
-      (call) =>
-        call.table === 'products' &&
-        call.operation === 'update' &&
-        typeof call.payload === 'object' &&
-        (call.payload as { stock?: number }).stock === 3
-    )
-    expect(productUpdate).toBeDefined()
-
-    const analyticsInsert = db.calls.find((call) => call.table === 'analytics_events' && call.operation === 'insert')
-    expect(analyticsInsert).toBeDefined()
+    expect(verifyUpiOrderBySeller).toHaveBeenCalledWith({
+      orderId: 'o2',
+      creatorId: 'creator_1',
+      upiReferenceNumber: '123456789012',
+    })
   })
 
-  it('prevents duplicate verification of same UPI order', async () => {
-    createClient.mockResolvedValue({
-      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'u1' } } }) },
+  it('supports seller email confirmation tokens without requiring auth', async () => {
+    verifyOrderActionToken.mockReturnValue({
+      purpose: 'seller_manual_upi_confirm',
+      orderId: 'o_email',
+      creatorId: 'creator_email',
     })
-    createAdminClient.mockReturnValue(
-      new SupabaseQueryMock({
-        creators: { selectSingle: [{ data: { id: 'creator_1' } }] },
-        orders: {
-          selectSingle: [
-            {
-              data: {
-                id: 'o5',
-                creator_id: 'creator_1',
-                payment_method: 'upi_direct',
-                payment_status: 'paid',
-                payment_verified: true,
-                upi_reference_number: '123456789012',
-                payment_screenshot_url: null,
-              },
-            },
-          ],
-        },
-      })
+    verifyUpiOrderBySeller.mockResolvedValue({ success: true, message: 'verified via email' })
+
+    const response = await post('o_email', {
+      email_confirmation_token: 'email-token',
+    })
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.success).toBe(true)
+    expect(verifyOrderActionToken).toHaveBeenCalledWith('email-token')
+    expect(verifyUpiOrderBySeller).toHaveBeenCalledWith({
+      orderId: 'o_email',
+      creatorId: 'creator_email',
+      upiReferenceNumber: null,
+    })
+    expect(createClient).not.toHaveBeenCalled()
+  })
+
+  it('rejects automation mode when creator id is missing', async () => {
+    process.env.V3_AUTOMATION_TOKEN = 'secret_token'
+
+    const response = await post(
+      'o3',
+      {},
+      { 'x-lms-automation-token': 'secret_token' }
     )
 
-    const response = await post('o5')
     expect(response.status).toBe(400)
+  })
+
+  it('uses authenticated creator id for non-automation verification', async () => {
+    createClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user_1' } } }) },
+    })
+
+    const db = new SupabaseQueryMock({
+      creators: {
+        selectSingle: [{ data: { id: 'creator_42' } }],
+      },
+    })
+    createAdminClient.mockReturnValue(db)
+    verifyUpiOrderBySeller.mockResolvedValue({ success: true, message: 'verified' })
+
+    const response = await post('o4', { upi_reference_number: '999988887777' })
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.success).toBe(true)
+    expect(verifyUpiOrderBySeller).toHaveBeenCalledWith({
+      orderId: 'o4',
+      creatorId: 'creator_42',
+      upiReferenceNumber: '999988887777',
+    })
   })
 })

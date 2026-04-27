@@ -12,6 +12,20 @@ export async function POST(request: Request) {
 
         const supabase = createAdminClient()
 
+        const { data: product } = await supabase
+            .from('products')
+            .select('id, digital_subtype, is_active')
+            .eq('id', product_id)
+            .maybeSingle()
+
+        if (!product || product.is_active !== true) {
+            return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+        }
+
+        if (product.digital_subtype !== 'course') {
+            return NextResponse.json({ error: 'Product is not a course' }, { status: 400 })
+        }
+
         // Check for existing enrollment
         const { data: existing } = await supabase
             .from('course_enrollments')

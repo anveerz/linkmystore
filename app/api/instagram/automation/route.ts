@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
+import { getCreatorPlanSnapshot } from '@/lib/plan-gate'
 
 function asText(value: unknown, max = 500): string | null {
   if (typeof value !== 'string') return null
@@ -30,7 +31,7 @@ async function resolveCreatorContext() {
 
   const { data: creator } = await supabase
     .from('creators')
-    .select('id')
+    .select('id, plan')
     .eq('user_id', user.id)
     .single()
 
@@ -38,7 +39,13 @@ async function resolveCreatorContext() {
     return { supabase, creatorId: null, error: NextResponse.json({ error: 'Creator not found' }, { status: 404 }) }
   }
 
-  return { supabase, creatorId: creator.id, error: null }
+  const planSnapshot = await getCreatorPlanSnapshot(creator.id)
+  return {
+    supabase,
+    creatorId: creator.id,
+    plan: planSnapshot.effectivePlan,
+    error: null,
+  }
 }
 
 export async function GET() {
@@ -46,6 +53,9 @@ export async function GET() {
     const context = await resolveCreatorContext()
     if (context.error) return context.error
     if (!context.creatorId) return NextResponse.json({ error: 'Creator not found' }, { status: 404 })
+    if (context.plan !== 'pro') {
+      return NextResponse.json({ error: 'Automations are available on Pro plan only' }, { status: 403 })
+    }
 
     const { data, error } = await context.supabase
       .from('instagram_automation_settings')
@@ -78,6 +88,9 @@ export async function PUT(request: Request) {
     const context = await resolveCreatorContext()
     if (context.error) return context.error
     if (!context.creatorId) return NextResponse.json({ error: 'Creator not found' }, { status: 404 })
+    if (context.plan !== 'pro') {
+      return NextResponse.json({ error: 'Automations are available on Pro plan only' }, { status: 403 })
+    }
 
     const body = await request.json()
     const enabled = body.enabled === true

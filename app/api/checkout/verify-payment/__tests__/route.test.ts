@@ -5,24 +5,28 @@ jest.mock('@/lib/supabase/admin', () => ({
   createAdminClient: jest.fn(),
 }))
 
-jest.mock('@/lib/notifications', () => ({
-  sendOrderNotificationIfEligible: jest.fn().mockResolvedValue(null),
+jest.mock('@/lib/payments/crypto', () => ({
+  decryptSecret: jest.fn(),
+}))
+
+jest.mock('@/lib/payments/order-fulfillment', () => ({
+  markOrderPaidAndFulfill: jest.fn(),
 }))
 
 const { createAdminClient } = jest.requireMock('@/lib/supabase/admin') as {
   createAdminClient: jest.Mock
 }
+const { decryptSecret } = jest.requireMock('@/lib/payments/crypto') as {
+  decryptSecret: jest.Mock
+}
+const { markOrderPaidAndFulfill } = jest.requireMock('@/lib/payments/order-fulfillment') as {
+  markOrderPaidAndFulfill: jest.Mock
+}
 
-describe('POST /api/checkout/verify-payment (Razorpay gateway)', () => {
-  const originalEnv = { ...process.env }
-
+describe('POST /api/checkout/verify-payment (compatibility)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    process.env = { ...originalEnv, RAZORPAY_KEY_SECRET: 'gateway_secret' }
-  })
-
-  afterAll(() => {
-    process.env = originalEnv
+    decryptSecret.mockReturnValue('gateway_secret')
   })
 
   async function post(body: Record<string, unknown>) {
@@ -35,109 +39,119 @@ describe('POST /api/checkout/verify-payment (Razorpay gateway)', () => {
     )
   }
 
-  it('rejects invalid Razorpay signature', async () => {
+  it('validates required gateway fields', async () => {
     createAdminClient.mockReturnValue(new SupabaseQueryMock())
 
     const response = await post({
       razorpay_order_id: 'order_1',
       razorpay_payment_id: 'pay_1',
-      razorpay_signature: 'bad_signature',
-      product_id: 'p1',
     })
 
     expect(response.status).toBe(400)
   })
 
-  it('blocks affiliate products from internal payment flow', async () => {
-    const signature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
-      .update('order_aff|pay_aff')
-      .digest('hex')
-
-    createAdminClient.mockReturnValue(
-      new SupabaseQueryMock({
-        products: {
-          selectSingle: [
-            {
-              data: {
-                id: 'p_aff',
-                creator_id: 'c1',
-                is_affiliate: true,
-                type: 'physical',
-              },
-            },
-          ],
-        },
-      })
-    )
-
-    const response = await post({
-      razorpay_order_id: 'order_aff',
-      razorpay_payment_id: 'pay_aff',
-      razorpay_signature: signature,
-      product_id: 'p_aff',
-    })
-    const body = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(body.error).toContain('Affiliate products')
-  })
-
-  it('creates paid order record for valid non-affiliate payment', async () => {
-    const orderId = 'order_ok'
-    const paymentId = 'pay_ok'
-    const signature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
-      .update(`${orderId}|${paymentId}`)
-      .digest('hex')
-
+  it('returns 404 when no linked order exists', async () => {
     const db = new SupabaseQueryMock({
-      products: {
-        selectSingle: [
-          {
-            data: {
-              id: 'product_1',
-              creator_id: 'creator_1',
-              price: 49900,
-              type: 'physical',
-              variants: [],
-              stock: null,
-              is_affiliate: false,
-            },
-          },
-        ],
-      },
       orders: {
-        select: [{ data: [] }],
-        insertSingle: [{ data: { id: 'order_db_1', order_number: 'LMS-20260227-001' } }],
-      },
-      analytics_events: {
-        insert: [{ data: null }],
+        selectSingle: [{ data: null }],
       },
     })
     createAdminClient.mockReturnValue(db)
 
     const response = await post({
-      razorpay_order_id: orderId,
-      razorpay_payment_id: paymentId,
+      razorpay_order_id: 'order_missing',
+      razorpay_payment_id: 'pay_missing',
+      razorpay_signature: 'sig',
+    })
+
+    expect(response.status).toBe(404)
+  })
+
+  it('rejects invalid signatures', async () => {
+    const db = new SupabaseQueryMock({
+      orders: {
+        selectSingle: [
+          {
+            data: {
+              id: 'order_1',
+              order_number: 'LMS-20260301-001',
+              creator_id: 'creator_1',
+              gateway_order_id: 'order_rzp_1',
+              shipping_address: null,
+            },
+          },
+        ],
+      },
+      payment_accounts: {
+        selectSingle: [{ data: { pg_secret_encrypted: 'encrypted_secret' } }],
+      },
+    })
+    createAdminClient.mockReturnValue(db)
+
+    const response = await post({
+      razorpay_order_id: 'order_rzp_1',
+      razorpay_payment_id: 'pay_rzp_1',
+      razorpay_signature: 'bad_signature',
+    })
+
+    expect(response.status).toBe(400)
+  })
+
+  it('delegates to fulfillment for valid compatibility verification', async () => {
+    const orderId = 'order_db_1'
+    const razorpayOrderId = 'order_rzp_1'
+    const razorpayPaymentId = 'pay_rzp_1'
+    const signature = crypto
+      .createHmac('sha256', 'gateway_secret')
+      .update(`${razorpayOrderId}|${razorpayPaymentId}`)
+      .digest('hex')
+
+    const db = new SupabaseQueryMock({
+      orders: {
+        selectSingle: [
+          {
+            data: {
+              id: orderId,
+              order_number: 'LMS-20260301-005',
+              creator_id: 'creator_1',
+              gateway_order_id: razorpayOrderId,
+              shipping_address: {},
+            },
+          },
+        ],
+        update: [{ data: null }],
+      },
+      payment_accounts: {
+        selectSingle: [{ data: { pg_secret_encrypted: 'encrypted_secret' } }],
+      },
+    })
+    createAdminClient.mockReturnValue(db)
+    markOrderPaidAndFulfill.mockResolvedValue({
+      alreadyPaid: false,
+      order: {
+        id: orderId,
+        order_number: 'LMS-20260301-005',
+      },
+    })
+
+    const response = await post({
+      razorpay_order_id: razorpayOrderId,
+      razorpay_payment_id: razorpayPaymentId,
       razorpay_signature: signature,
-      product_id: 'product_1',
       buyer_name: 'Buyer',
-      buyer_phone: '9876543210',
-      buyer_email: 'buyer@example.com',
+      buyer_phone: '+919876543210',
     })
     const body = await response.json()
 
     expect(response.status).toBe(200)
     expect(body.success).toBe(true)
-    expect(body.order_id).toBe('order_db_1')
-
-    const insertedOrder = db.calls.find((call) => call.table === 'orders' && call.operation === 'insertSingle')
-    expect(insertedOrder?.payload).toEqual(
+    expect(body.order_id).toBe(orderId)
+    expect(markOrderPaidAndFulfill).toHaveBeenCalledWith(
       expect.objectContaining({
-        payment_status: 'paid',
-        razorpay_order_id: orderId,
-        razorpay_payment_id: paymentId,
+        orderId,
+        provider: 'razorpay',
+        gatewayOrderId: razorpayOrderId,
+        gatewayPaymentId: razorpayPaymentId,
       })
     )
   })

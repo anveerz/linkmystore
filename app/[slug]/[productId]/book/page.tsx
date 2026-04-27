@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useParams, useSearchParams } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -14,6 +14,9 @@ import {
   Lock,
   Video,
   Phone,
+  Copy,
+  Download,
+  ExternalLink,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -33,6 +36,12 @@ const PLATFORM_LABELS: Record<string, string> = {
   phone: 'Phone Call',
 }
 
+interface DurationOption {
+  duration_minutes: number
+  price: number
+  label?: string
+}
+
 function formatTime12(time24: string) {
   const [h, m] = time24.split(':').map(Number)
   const ampm = h >= 12 ? 'PM' : 'AM'
@@ -42,6 +51,7 @@ function formatTime12(time24: string) {
 
 export default function BookPage() {
   const params = useParams()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
   const slug = params.slug as string
@@ -73,15 +83,68 @@ export default function BookPage() {
   const [buyerPhone, setBuyerPhone] = useState('')
 
   // Step
-  const [step, setStep] = useState<'date' | 'time' | 'details' | 'success'>('date')
+  const [step, setStep] = useState<'duration' | 'date' | 'time' | 'details' | 'upi_confirm' | 'success'>('duration')
+  const [orderId, setOrderId] = useState<string | null>(null)
   const [orderNumber, setOrderNumber] = useState<string | null>(null)
-  const [meetingLink, setMeetingLink] = useState<string | null>(null)
+  const [sessionMode, setSessionMode] = useState<'pg' | 'upi' | null>(null)
+  const [pendingVerificationFlow, setPendingVerificationFlow] = useState(false)
+  const [submittedUtr, setSubmittedUtr] = useState<string | null>(null)
+  const [sellerUpiId, setSellerUpiId] = useState<string | null>(null)
+  const [sellerName, setSellerName] = useState<string | null>(null)
+  const [upiQrLink, setUpiQrLink] = useState<string | null>(null)
+  const [upiTransactionRef, setUpiTransactionRef] = useState<string | null>(null)
+  const [upiTransactionNote, setUpiTransactionNote] = useState<string | null>(null)
+  const [upiReferenceNumber, setUpiReferenceNumber] = useState('')
+  const [confirmingUpi, setConfirmingUpi] = useState(false)
+  const [durationOptions, setDurationOptions] = useState<DurationOption[]>([])
+  const [selectedDurationMinutes, setSelectedDurationMinutes] = useState<number | null>(null)
+  const [selectedDurationPrice, setSelectedDurationPrice] = useState<number | null>(null)
 
   const variantIndex = parseInt(searchParams.get('variant') || '0', 10)
 
+  const deriveDurationOptions = (productData: Record<string, unknown>): DurationOption[] => {
+    const subtype = productData.digital_subtype as string | undefined
+    if (subtype === 'coaching') {
+      const coachingData = (productData.coaching_data || {}) as {
+        duration_options?: Array<{ duration_minutes: number; price: number; label?: string }>
+        duration_minutes?: number
+      }
+
+      const durationOptionsFromProduct = Array.isArray(coachingData.duration_options)
+        ? coachingData.duration_options
+            .filter((option) => option?.duration_minutes && option?.price >= 0)
+            .map((option) => ({
+              duration_minutes: Number(option.duration_minutes),
+              price: Number(option.price),
+              label: option.label,
+            }))
+        : []
+
+      if (durationOptionsFromProduct.length > 0) {
+        return durationOptionsFromProduct
+      }
+
+      return [
+        {
+          duration_minutes: Number(coachingData.duration_minutes || 30),
+          price: Number(productData.price || 0),
+          label: 'Session',
+        },
+      ]
+    }
+
+    const calendarData = (productData.calendar_data || {}) as { duration_minutes?: number }
+    return [
+      {
+        duration_minutes: Number(calendarData.duration_minutes || 30),
+        price: Number(productData.price || 0),
+        label: 'Slot',
+      },
+    ]
+  }
+
   useEffect(() => {
     fetchData()
-    loadRazorpayScript()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, productId])
 
@@ -95,7 +158,22 @@ export default function BookPage() {
       const { data: productData } = await supabase
         .from('products').select('*').eq('id', productId).eq('creator_id', creatorData.id).eq('is_active', true).single()
       if (!productData) return
+
+      const digitalSubtype = productData.digital_subtype as string | null | undefined
+      if (digitalSubtype !== 'coaching' && digitalSubtype !== 'calendar') {
+        toast.error('This product uses regular checkout, not session booking.')
+        router.replace(`/${slug}/${productId}`)
+        return
+      }
+
       setProduct(productData)
+
+      const options = deriveDurationOptions(productData as Record<string, unknown>)
+      setDurationOptions(options)
+      setSelectedDurationMinutes(options[0]?.duration_minutes || null)
+      setSelectedDurationPrice(options[0]?.price ?? null)
+      setStep('duration')
+      loadRazorpayScript()
 
       const { data: settingsData } = await supabase
         .from('store_settings').select('*').eq('creator_id', creatorData.id).single()
@@ -148,7 +226,8 @@ export default function BookPage() {
     setSlots([])
     setSelectedTime(null)
     try {
-      const res = await fetch(`/api/bookings/available-slots?product_id=${productId}&date=${dateStr}`)
+      const durationQuery = selectedDurationMinutes ? `&duration_minutes=${selectedDurationMinutes}` : ''
+      const res = await fetch(`/api/bookings/available-slots?product_id=${productId}&date=${dateStr}${durationQuery}`)
       const data = await res.json()
       setSlots(data.slots || [])
     } catch {
@@ -164,6 +243,15 @@ export default function BookPage() {
     setStep('time')
   }
 
+  const handleDurationSelect = (option: DurationOption) => {
+    setSelectedDurationMinutes(option.duration_minutes)
+    setSelectedDurationPrice(option.price)
+    setSelectedDate(null)
+    setSelectedTime(null)
+    setSlots([])
+    setStep('date')
+  }
+
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time)
     setStep('details')
@@ -171,6 +259,7 @@ export default function BookPage() {
 
   const getPrice = () => {
     if (!product) return 0
+    if (selectedDurationPrice !== null) return selectedDurationPrice
     if (product.variants?.length > 0 && product.variants[variantIndex]?.price) {
       return product.variants[variantIndex].price
     }
@@ -178,6 +267,51 @@ export default function BookPage() {
   }
 
   const formatPrice = (paisa: number) => '₹' + (paisa / 100).toLocaleString('en-IN')
+
+  const copyToClipboard = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value)
+      toast.success(`${label} copied`)
+    } catch {
+      toast.error(`Could not copy ${label.toLowerCase()}`)
+    }
+  }
+
+  const handleConfirmUpi = async () => {
+    if (!orderId) return
+
+    const normalizedUtr = upiReferenceNumber.replace(/\s/g, '')
+    if (!normalizedUtr) {
+      toast.error('Please enter your 12-digit UTR after payment')
+      return
+    }
+
+    setConfirmingUpi(true)
+    try {
+      const proofResponse = await fetch('/api/payments/upi/submit-proof', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: orderId,
+          utr: normalizedUtr,
+        }),
+      })
+
+      const proofData = await proofResponse.json()
+      if (!proofResponse.ok) {
+        throw new Error(proofData.error || 'Failed to submit UPI proof')
+      }
+
+      setSubmittedUtr(normalizedUtr)
+      setPendingVerificationFlow(true)
+      setStep('success')
+      toast.success('UPI payment proof submitted')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to submit UPI proof')
+    } finally {
+      setConfirmingUpi(false)
+    }
+  }
 
   const handlePayment = async () => {
     if (!product || !creator || !selectedDate || !selectedTime) return
@@ -189,28 +323,55 @@ export default function BookPage() {
 
     setPaying(true)
     try {
-      const orderRes = await fetch('/api/checkout/create-order', {
+      const orderRes = await fetch('/api/checkout/create-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           product_id: product.id,
           creator_id: creator.id,
           variant_index: variantIndex,
-          amount: getPrice(),
+          buyer_name: buyerName.trim(),
+          buyer_email: buyerEmail.trim(),
+          buyer_phone: '+91' + buyerPhone.replace(/\D/g, ''),
+          shipping_address: {
+            _booking_date: selectedDate,
+            _booking_time: selectedTime,
+            _booking_duration_minutes: selectedDurationMinutes || undefined,
+          },
+          booking_date: selectedDate,
+          booking_time: selectedTime,
+          duration_minutes: selectedDurationMinutes || undefined,
         }),
       })
       const orderData = await orderRes.json()
       if (!orderRes.ok) throw new Error(orderData.error || 'Failed to create order')
 
       const accentColor = settings?.accent_color || '#E8651A'
+      setOrderId(orderData.order_id || null)
+      setOrderNumber(orderData.order_number)
+      setSessionMode(orderData.mode === 'pg' ? 'pg' : 'upi')
+
+      if (orderData.mode !== 'pg') {
+        setSellerUpiId(orderData.seller_upi_id || null)
+        setSellerName(orderData.seller_name || creator.store_name)
+        setUpiQrLink(orderData.qr_link || null)
+        setUpiTransactionRef(orderData.transaction_ref || orderData.order_number || null)
+        setUpiTransactionNote(orderData.transaction_note || null)
+        setUpiReferenceNumber('')
+        setPendingVerificationFlow(false)
+        setStep('upi_confirm')
+        toast('Pay manually using the UPI ID and amount shown below, then submit UTR.')
+        setPaying(false)
+        return
+      }
 
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: getPrice(),
+        key: orderData.key_id,
+        amount: orderData.amount,
         currency: 'INR',
         name: creator.store_name,
         description: `${product.title} — ${selectedDate} at ${formatTime12(selectedTime)}`,
-        order_id: orderData.razorpay_order_id,
+        order_id: orderData.gateway_order_id,
         prefill: {
           name: buyerName,
           contact: '+91' + buyerPhone.replace(/\D/g, ''),
@@ -219,53 +380,32 @@ export default function BookPage() {
         config: {
           display: {
             blocks: {
-              utib: { name: 'Pay via UPI', instruments: [{ method: 'upi' }] },
+              upi: { name: 'Pay via UPI', instruments: [{ method: 'upi' }] },
               other: { name: 'Other Methods', instruments: [{ method: 'card' }, { method: 'netbanking' }] },
             },
-            sequence: ['block.utib', 'block.other'],
+            sequence: ['block.upi', 'block.other'],
             preferences: { show_default_blocks: false },
           },
         },
         theme: { color: accentColor },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        handler: async function (response: any) {
-          try {
-            const verifyRes = await fetch('/api/checkout/verify-payment', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                product_id: product.id,
-                creator_id: creator.id,
-                variant_index: variantIndex,
-                buyer_name: buyerName,
-                buyer_email: buyerEmail,
-                buyer_phone: '+91' + buyerPhone.replace(/\D/g, ''),
-                booking_date: selectedDate,
-                booking_time: selectedTime,
-              }),
-            })
-            const verifyData = await verifyRes.json()
-            if (!verifyRes.ok) throw new Error(verifyData.error || 'Verification failed')
-
-            setOrderNumber(verifyData.order_number)
-
-            // Extract meeting link from product config
-            const config = getConfig()
-            setMeetingLink(config?.meeting_link || null)
+          handler: () => {
+            setPendingVerificationFlow(false)
             setStep('success')
-          } catch (err: unknown) {
-            toast.error(err instanceof Error ? err.message : 'Payment verification failed')
+            toast.success('Payment successful. Confirmation is automatic.')
             setPaying(false)
-          }
-        },
+          },
         modal: { ondismiss: () => setPaying(false), confirm_close: true },
       }
 
-      const rzp = new (window as unknown as { Razorpay: new (o: object) => { on: (e: string, fn: () => void) => void; open: () => void } }).Razorpay(options)
-      rzp.on('payment.failed', () => { toast.error('Payment failed. Please try again.'); setPaying(false) })
+      if (!window.Razorpay) {
+        throw new Error('Payment gateway script not loaded')
+      }
+
+      const rzp = new window.Razorpay(options)
+      rzp.on('payment.failed', () => {
+        toast.error('Payment failed. Please try again.')
+        setPaying(false)
+      })
       rzp.open()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Something went wrong')
@@ -296,6 +436,157 @@ export default function BookPage() {
   const accentColor = settings?.accent_color || '#E8651A'
   const price = getPrice()
   const config = getConfig()
+  const upiQrUrl = upiQrLink
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(upiQrLink)}`
+    : null
+
+  if (step === 'upi_confirm') {
+    return (
+      <div className="max-w-lg mx-auto bg-white min-h-screen px-4 py-8">
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-full bg-[#E8651A]/10 mx-auto flex items-center justify-center">
+            <CheckCircle2 className="w-8 h-8 text-[#E8651A]" />
+          </div>
+          <h1 className="text-xl font-bold mt-4">Complete UPI Payment</h1>
+          <p className="text-sm text-gray-500 mt-2">
+            Pay {formatPrice(price)} to {sellerName || creator.store_name} and submit UTR for booking confirmation.
+          </p>
+          {orderNumber && (
+            <p className="text-xs font-mono text-gray-400 mt-2">Order #{orderNumber}</p>
+          )}
+        </div>
+
+        <div className="card mt-6">
+          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            If UPI app shows security decline, pay manually using UPI ID and amount below, then enter UTR.
+          </p>
+
+          {upiQrUrl && (
+            <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+              <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-3">Scan QR to Pay</p>
+              <div className="mx-auto h-52 w-52 rounded-xl border border-gray-100 bg-white p-2 sm:h-60 sm:w-60">
+                <a href={upiQrUrl} target="_blank" rel="noopener noreferrer" className="block h-full w-full">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={upiQrUrl}
+                    alt="UPI payment QR code"
+                    className="h-full w-full rounded-lg object-contain"
+                    loading="lazy"
+                  />
+                </a>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                <a
+                  href={upiQrUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Open full size
+                </a>
+                <a
+                  href={upiQrUrl}
+                  download={`linkmystore-booking-qr-${orderNumber || 'payment'}.png`}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Save QR image
+                </a>
+              </div>
+              <p className="mt-2 text-center text-[11px] text-gray-500">
+                Open the QR full size or save it before switching to your UPI app.
+              </p>
+            </div>
+          )}
+
+          <div className="mt-4 space-y-3">
+            <div className="rounded-xl border border-gray-200 px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-gray-500">Seller UPI ID</p>
+              <div className="flex items-start justify-between gap-2 mt-1">
+                <p className="text-sm font-medium text-gray-800 break-all">{sellerUpiId || 'Not available'}</p>
+                {sellerUpiId && (
+                  <button
+                    type="button"
+                    onClick={() => { void copyToClipboard(sellerUpiId, 'UPI ID') }}
+                    className="text-xs text-[#E8651A] inline-flex items-center gap-1"
+                  >
+                    <Copy className="w-3 h-3" />
+                    Copy
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-gray-500">Amount</p>
+              <div className="flex items-center justify-between gap-2 mt-1">
+                <p className="text-sm font-medium text-gray-800">{formatPrice(price)}</p>
+                <button
+                  type="button"
+                  onClick={() => { void copyToClipboard((price / 100).toFixed(2), 'Amount') }}
+                  className="text-xs text-[#E8651A] inline-flex items-center gap-1"
+                >
+                  <Copy className="w-3 h-3" />
+                  Copy
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-gray-500">Order Reference</p>
+              <div className="flex items-center justify-between gap-2 mt-1">
+                <p className="text-sm font-mono text-gray-700">{upiTransactionRef || orderNumber || '-'}</p>
+                {(upiTransactionRef || orderNumber) && (
+                  <button
+                    type="button"
+                    onClick={() => { void copyToClipboard(upiTransactionRef || orderNumber || '', 'Order reference') }}
+                    className="text-xs text-[#E8651A] inline-flex items-center gap-1"
+                  >
+                    <Copy className="w-3 h-3" />
+                    Copy
+                  </button>
+                )}
+              </div>
+              {upiTransactionNote && (
+                <p className="text-xs text-gray-500 mt-1">Note: {upiTransactionNote}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="card mt-4">
+          <label className="block text-sm font-medium mb-2">UPI Reference Number (12 digits)</label>
+          <input
+            type="text"
+            value={upiReferenceNumber}
+            onChange={(e) => setUpiReferenceNumber(e.target.value.replace(/[^\d\s]/g, '').slice(0, 14))}
+            placeholder="e.g., 412345678901"
+            className="input-field"
+          />
+
+          <button
+            onClick={() => { void handleConfirmUpi() }}
+            disabled={confirmingUpi}
+            className="btn-primary w-full mt-5 flex items-center justify-center gap-2"
+          >
+            {confirmingUpi ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              'I Have Paid - Confirm Payment'
+            )}
+          </button>
+        </div>
+
+        <Link href={`/${slug}`} className="btn-secondary w-full mt-4 text-center block">
+          Back to Store
+        </Link>
+      </div>
+    )
+  }
 
   // ── Success ────────────────────────────────────────────────────────────────
   if (step === 'success') {
@@ -305,9 +596,15 @@ export default function BookPage() {
           <div className="w-20 h-20 rounded-full bg-green-100 mx-auto flex items-center justify-center animate-bounce">
             <CheckCircle2 className="w-10 h-10 text-green-500" />
           </div>
-          <h1 className="text-2xl font-bold mt-6">Booking Confirmed! 🎉</h1>
+          <h1 className="text-2xl font-bold mt-6">
+            {sessionMode === 'pg' ? 'Booking Confirmed!' : 'Booking Request Submitted'}
+          </h1>
           <p className="text-gray-500 text-sm mt-2">
-            Your session is locked in, {buyerName.split(' ')[0]}!
+            {sessionMode === 'pg'
+              ? `Your session is locked in, ${buyerName.split(' ')[0]}!`
+              : pendingVerificationFlow
+                ? 'Your UPI proof has been submitted. Seller will verify and confirm your booking shortly.'
+                : 'Complete UPI proof submission with the seller using your order number for faster confirmation.'}
           </p>
           <p className="text-sm font-mono text-gray-400 mt-1">Order #{orderNumber}</p>
         </div>
@@ -323,7 +620,7 @@ export default function BookPage() {
             </div>
             <div>
               <p className="font-semibold text-sm text-gray-800">{product.title}</p>
-              <p className="text-xs text-gray-500">{config?.duration_minutes || 30} min session</p>
+              <p className="text-xs text-gray-500">{selectedDurationMinutes || config?.duration_minutes || 30} min session</p>
             </div>
           </div>
 
@@ -336,9 +633,9 @@ export default function BookPage() {
             </div>
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              <span className="text-sm text-gray-700 font-medium">
-                {selectedTime ? formatTime12(selectedTime) : ''} ({config?.duration_minutes || 30} minutes)
-              </span>
+                <span className="text-sm text-gray-700 font-medium">
+                {selectedTime ? formatTime12(selectedTime) : ''} ({selectedDurationMinutes || config?.duration_minutes || 30} minutes)
+                </span>
             </div>
             {config?.meeting_platform && (
               <div className="flex items-center gap-2">
@@ -354,29 +651,21 @@ export default function BookPage() {
             )}
           </div>
 
-          {meetingLink && (
-            <div className="mt-4 border-t border-gray-100 pt-4">
-              <p className="text-xs text-gray-400 mb-2">Meeting Link</p>
-              <a
-                href={meetingLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-3 rounded-xl font-semibold text-sm text-white flex items-center justify-center gap-2"
-                style={{ background: `linear-gradient(135deg, ${accentColor} 0%, #3D2176 100%)` }}
-              >
-                <Video className="w-4 h-4" />
-                Join Meeting
-              </a>
-            </div>
-          )}
-
-          {!meetingLink && (
-            <div className="mt-4 bg-blue-50 rounded-xl px-3 py-2.5">
-              <p className="text-xs text-blue-700">
-                📧 The seller will send your meeting link to <strong>{buyerEmail}</strong> before the session.
+          <div className="mt-4 rounded-xl bg-blue-50 px-3 py-2.5">
+            <p className="text-xs text-blue-700">
+              Meeting link details will be shared on <strong>{buyerEmail}</strong> after booking confirmation.
+            </p>
+            {submittedUtr && (
+              <p className="text-[11px] text-blue-700 mt-1">
+                UTR submitted: <span className="font-mono">{submittedUtr}</span>
               </p>
-            </div>
-          )}
+            )}
+            {sessionMode !== 'pg' && !pendingVerificationFlow && (
+              <p className="text-[11px] text-blue-700 mt-1">
+                Share this order number with the seller after UPI payment.
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="max-w-sm mx-auto mt-6">
@@ -409,7 +698,8 @@ export default function BookPage() {
         <div className="h-14 flex items-center px-4">
           <button
             onClick={() => {
-              if (step === 'time') setStep('date')
+              if (step === 'date') setStep('duration')
+              else if (step === 'time') setStep('date')
               else if (step === 'details') setStep('time')
               else window.history.back()
             }}
@@ -418,7 +708,13 @@ export default function BookPage() {
             <ChevronLeft className="w-5 h-5 text-gray-600" />
           </button>
           <span className="flex-1 text-center font-semibold text-sm">
-            {step === 'date' ? 'Pick a Date' : step === 'time' ? 'Choose a Time' : 'Your Details'}
+            {step === 'duration'
+              ? 'Choose Duration'
+              : step === 'date'
+                ? 'Pick a Date'
+                : step === 'time'
+                  ? 'Choose a Time'
+                  : 'Your Details'}
           </span>
           <Lock className="w-3.5 h-3.5 text-gray-400" />
         </div>
@@ -428,7 +724,16 @@ export default function BookPage() {
           <div
             className="h-full transition-all duration-300"
             style={{
-              width: step === 'date' ? '33%' : step === 'time' ? '66%' : '100%',
+              width:
+                step === 'duration'
+                  ? '20%'
+                  : step === 'date'
+                    ? '40%'
+                    : step === 'time'
+                      ? '60%'
+                      : step === 'details'
+                        ? '80%'
+                        : '100%',
               background: `linear-gradient(90deg, ${accentColor}, #3D2176)`,
             }}
           />
@@ -449,7 +754,7 @@ export default function BookPage() {
           <p className="text-sm font-semibold truncate">{product.title}</p>
           {config && (
             <p className="text-xs text-gray-500">
-              {config.duration_minutes} min • {PLATFORM_ICONS[config.meeting_platform] || '📹'} {PLATFORM_LABELS[config.meeting_platform] || config.meeting_platform}
+              {selectedDurationMinutes || config.duration_minutes} min • {PLATFORM_ICONS[config.meeting_platform] || '📹'} {PLATFORM_LABELS[config.meeting_platform] || config.meeting_platform}
             </p>
           )}
         </div>
@@ -459,6 +764,35 @@ export default function BookPage() {
       </div>
 
       {/* ── STEP: Date Picker ── */}
+      {/* Duration Step */}
+      {step === 'duration' && (
+        <div className="mx-4 mt-6">
+          <h2 className="mb-3 text-sm font-semibold text-gray-700">Select session duration</h2>
+          <div className="space-y-2">
+            {durationOptions.map((option) => {
+              const isSelected = selectedDurationMinutes === option.duration_minutes
+              return (
+                <button
+                  key={`${option.duration_minutes}-${option.price}`}
+                  type="button"
+                  onClick={() => handleDurationSelect(option)}
+                  className={`w-full rounded-xl border px-4 py-3 text-left transition-all ${
+                    isSelected ? 'border-[#E8651A] bg-[#F0ECF7]' : 'border-gray-200 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{option.label || `${option.duration_minutes} min`}</p>
+                      <p className="text-xs text-gray-500">{option.duration_minutes} minutes</p>
+                    </div>
+                    <p className="text-sm font-bold" style={{ color: accentColor }}>{formatPrice(option.price)}</p>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
       {step === 'date' && (
         <div className="mx-4 mt-6">
           {/* Month navigation */}
@@ -666,9 +1000,15 @@ export default function BookPage() {
               <><Lock className="w-4 h-4" /> Pay {formatPrice(price)} & Confirm</>
             )}
           </button>
-          <p className="text-center text-[11px] text-gray-400 mt-2">🔒 Secure payment via Razorpay</p>
+          <p className="text-center text-[11px] text-gray-400 mt-2">PG auto-confirmation with manual UPI mode for non-gateway sellers</p>
         </div>
       )}
     </div>
   )
 }
+
+
+
+
+
+

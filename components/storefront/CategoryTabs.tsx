@@ -2,13 +2,17 @@
 
 import { motion } from 'framer-motion'
 import type { CategoryTabsProps } from '@/types'
+import { getStorefrontTheme } from '@/lib/storefront-theme'
 
 export function CategoryTabs({
   categories,
   activeCategory,
   onCategoryChange,
   accentColor,
+  theme,
 }: CategoryTabsProps) {
+  const themeStyles = getStorefrontTheme(theme)
+
   return (
     <nav
       className="scrollbar-hide overflow-x-auto scroll-smooth"
@@ -27,7 +31,7 @@ export function CategoryTabs({
               className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                 isActive
                   ? 'text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : `${themeStyles.tabInactive} ${themeStyles.tabInactiveHover}`
               }`}
               style={
                 isActive

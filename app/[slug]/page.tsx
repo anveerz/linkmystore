@@ -1,13 +1,24 @@
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
-import Image from 'next/image'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getCreatorPlanSnapshot } from '@/lib/plan-gate'
 import { calculateStoreStats } from '@/lib/store-stats'
 import EventTracker from '@/components/analytics/EventTracker'
 import { StorefrontClient } from '@/components/storefront/StorefrontClient'
 import type { Product, StoreSettings } from '@/types'
 
-const RESERVED_SLUGS = ['login', 'dashboard', 'onboarding', 'auth', 'api', 'checkout', '_next', 'favicon.ico']
+const RESERVED_SLUGS = [
+  'login',
+  'dashboard',
+  'onboarding',
+  'auth',
+  'api',
+  'checkout',
+  '_next',
+  'favicon.ico',
+  'robots.txt',
+  'sitemap.xml',
+  '.well-known',
+]
 
 export const revalidate = 60
 
@@ -22,6 +33,12 @@ async function getStoreData(slug: string) {
     .single()
 
   if (creatorError || !creator) return null
+
+  const planSnapshot = await getCreatorPlanSnapshot(creator.id)
+  const effectiveCreator = {
+    ...creator,
+    plan: planSnapshot.effectivePlan,
+  }
 
   const [productsResult, settingsResult, stats] = await Promise.all([
     supabase
@@ -39,15 +56,32 @@ async function getStoreData(slug: string) {
     calculateStoreStats(creator.id),
   ])
 
+  const rawSettings = (settingsResult.data || {
+    theme: 'default',
+    accent_color: '#E8651A',
+    social_links: {},
+    announcement_text: null,
+    show_branding: true,
+    seo_enabled: false,
+  }) as StoreSettings
+
+  const normalizedSettings: StoreSettings = effectiveCreator.plan === 'pro'
+    ? {
+        ...rawSettings,
+        show_branding: rawSettings.show_branding ?? false,
+        seo_enabled: rawSettings.seo_enabled ?? true,
+      }
+    : {
+        ...rawSettings,
+        theme: 'default',
+        seo_enabled: false,
+        show_branding: true,
+      }
+
   return {
-    creator,
+    creator: effectiveCreator,
     products: (productsResult.data || []) as Product[],
-    settings: (settingsResult.data || {
-      theme: 'default',
-      accent_color: '#E8651A',
-      social_links: {},
-      announcement_text: null,
-    }) as StoreSettings,
+    settings: normalizedSettings,
     stats,
   }
 }
@@ -58,9 +92,25 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   if (!data) return { title: 'Store Not Found' }
 
+  const seoEnabled = data.creator.plan === 'pro' && data.settings?.seo_enabled === true
+  if (!seoEnabled) {
+    return {
+      title: `${data.creator.store_name} | LinkMyStore`,
+      description: `Store by ${data.creator.store_name} on LinkMyStore`,
+      robots: {
+        index: false,
+        follow: false,
+      },
+    }
+  }
+
   return {
-    title: `${data.creator.store_name} — LinkMyStore`,
+    title: `${data.creator.store_name} - LinkMyStore`,
     description: data.creator.bio || `Shop from ${data.creator.store_name} on LinkMyStore`,
+    robots: {
+      index: true,
+      follow: true,
+    },
     openGraph: {
       title: data.creator.store_name,
       description: data.creator.bio || `Shop from ${data.creator.store_name}`,
@@ -79,27 +129,12 @@ export default async function StorePage({ params }: { params: Promise<{ slug: st
 
   const data = await getStoreData(slug)
 
-  if (!data) {
-    return (
-      <div className="max-w-lg mx-auto min-h-screen flex items-center justify-center px-4">
-        <div className="text-center">
-          <div className="text-6xl mb-4">🔍</div>
-          <h1 className="text-xl font-bold text-[#0F172A] mb-2">Store not found</h1>
-          <p className="text-gray-500 text-sm mb-6">
-            This store doesn&apos;t exist or has been deactivated
-          </p>
-          <Link href="/login" className="btn-primary">
-            Create your own store
-          </Link>
-        </div>
-      </div>
-    )
-  }
+  if (!data) notFound()
 
   const { creator, products, settings, stats } = data
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <EventTracker
         creatorId={creator.id}
         eventType="store_view"
@@ -112,19 +147,6 @@ export default async function StorePage({ params }: { params: Promise<{ slug: st
         settings={settings}
         stats={stats}
       />
-
-      {/* Footer */}
-      <footer className="border-t border-gray-200 bg-white px-4 py-4 text-center">
-        <a
-          href="https://linkmystore.in"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-[10px] text-gray-400 hover:text-gray-500 transition-colors bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full border border-gray-100"
-        >
-          Powered by
-          <Image src="/logo.png" alt="LinkMyStore" height={14} width={56} className="h-3.5 w-auto opacity-50" />
-        </a>
-      </footer>
     </div>
   )
 }

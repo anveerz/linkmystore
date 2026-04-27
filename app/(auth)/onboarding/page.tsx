@@ -3,15 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
+import { AnimatePresence, motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
-import { STORE_CATEGORIES } from '@/lib/constants'
 import { validateUPIId } from '@/lib/upi'
+import { verifyUpiId } from '@/lib/upi-verifier'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import toast from 'react-hot-toast'
-import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Instagram, Loader2, UploadCloud } from 'lucide-react'
 
-type Step = 1 | 2 | 3 | 4 | 5
-type FirstProductMode = 'own' | 'affiliate' | 'skip'
+type Step = 1 | 2 | 3 | 4 | 5 | 6
+type FirstProductIntent = 'add_now' | 'later' | null
 
 function slugify(value: string) {
   return value
@@ -28,6 +30,17 @@ function buildDefaultPolicy(phone: string, email?: string | null) {
   return `For returns and refunds, contact me at ${contact}. Returns accepted within 7 days.`
 }
 
+function IndiaFlagIcon() {
+  return (
+    <svg viewBox="0 0 24 16" className="h-3.5 w-5 rounded-sm shadow-sm" aria-hidden="true">
+      <rect width="24" height="16" fill="#fff" />
+      <rect width="24" height="5.33" y="0" fill="#FF9933" />
+      <rect width="24" height="5.33" y="10.67" fill="#138808" />
+      <circle cx="12" cy="8" r="1.7" fill="none" stroke="#000080" strokeWidth="0.6" />
+    </svg>
+  )
+}
+
 export default function OnboardingPage() {
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
@@ -37,8 +50,9 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [user, setUser] = useState<SupabaseUser | null>(null)
+  const [requiresFullName, setRequiresFullName] = useState(false)
 
-  // Step 1: store setup
+  // Step 1
   const [fullName, setFullName] = useState('')
   const [mobileNumber, setMobileNumber] = useState('')
   const [storeName, setStoreName] = useState('')
@@ -46,26 +60,21 @@ export default function OnboardingPage() {
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null)
   const [slugChecking, setSlugChecking] = useState(false)
 
-  // Step 2: category, bio
-  const [category, setCategory] = useState<(typeof STORE_CATEGORIES)[number]>('Fashion')
-  const [bio, setBio] = useState('')
+  // Step 2
   const [instagramHandle, setInstagramHandle] = useState('')
+
+  // Step 3
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
 
-  // Step 3: UPI
+  // Step 4
   const [upiId, setUpiId] = useState('')
   const [upiSkipped, setUpiSkipped] = useState(false)
 
-  // Step 4: first product
-  const [firstProductMode, setFirstProductMode] = useState<FirstProductMode>('skip')
-  const [firstProductTitle, setFirstProductTitle] = useState('')
-  const [firstProductPrice, setFirstProductPrice] = useState('')
-  const [firstProductDescription, setFirstProductDescription] = useState('')
-  const [firstProductImage, setFirstProductImage] = useState<File | null>(null)
-  const [firstProductImagePreview, setFirstProductImagePreview] = useState<string | null>(null)
+  // Step 5
+  const [firstProductIntent, setFirstProductIntent] = useState<FirstProductIntent>(null)
 
-  // Step 5: policies
+  // Step 6
   const [returnPolicy, setReturnPolicy] = useState('')
 
   const checkSlugAvailability = useCallback(async (slug: string) => {
@@ -98,9 +107,12 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     const initialize = async () => {
-      const { data: { user: authUser } } = await supabase.auth.getUser()
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser()
+
       if (!authUser) {
-        router.push('/login')
+        router.replace('/login')
         return
       }
 
@@ -110,20 +122,21 @@ export default function OnboardingPage() {
         .eq('user_id', authUser.id)
         .single()
 
-      if (existingCreator) {
-        router.push('/dashboard')
+      if (existingCreator?.id) {
+        router.replace('/dashboard')
         return
       }
 
       setUser(authUser)
 
+      const provider = (authUser.app_metadata?.provider as string | undefined) || 'email'
+      const needsFullName = provider === 'email'
+      setRequiresFullName(needsFullName)
+
       const prefillName = (authUser.user_metadata?.full_name as string | undefined)?.trim() || ''
       if (prefillName) {
         setFullName(prefillName)
         setStoreName(prefillName)
-        const slug = slugify(prefillName)
-        setStoreSlug(slug)
-        void checkSlugAvailability(slug)
       }
 
       setReturnPolicy(buildDefaultPolicy('', authUser.email || null))
@@ -131,7 +144,7 @@ export default function OnboardingPage() {
     }
 
     void initialize()
-  }, [checkSlugAvailability, router, supabase])
+  }, [router, supabase])
 
   useEffect(() => {
     const defaultPolicy = buildDefaultPolicy(mobileNumber, user?.email || null)
@@ -142,30 +155,24 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     return () => {
-      if (logoPreview) URL.revokeObjectURL(logoPreview)
-      if (firstProductImagePreview) URL.revokeObjectURL(firstProductImagePreview)
+      if (slugDebounceRef.current) {
+        clearTimeout(slugDebounceRef.current)
+      }
+      if (logoPreview) {
+        URL.revokeObjectURL(logoPreview)
+      }
     }
-  }, [firstProductImagePreview, logoPreview])
-
-  const handleStoreNameChange = (value: string) => {
-    setStoreName(value)
-    if (!storeSlug || slugify(storeName) === storeSlug) {
-      const nextSlug = slugify(value)
-      setStoreSlug(nextSlug)
-      setSlugAvailable(null)
-      if (slugDebounceRef.current) clearTimeout(slugDebounceRef.current)
-      slugDebounceRef.current = setTimeout(() => {
-        void checkSlugAvailability(nextSlug)
-      }, 350)
-    }
-  }
+  }, [logoPreview])
 
   const handleSlugChange = (value: string) => {
     const slug = slugify(value)
     setStoreSlug(slug)
     setSlugAvailable(null)
 
-    if (slugDebounceRef.current) clearTimeout(slugDebounceRef.current)
+    if (slugDebounceRef.current) {
+      clearTimeout(slugDebounceRef.current)
+    }
+
     slugDebounceRef.current = setTimeout(() => {
       void checkSlugAvailability(slug)
     }, 350)
@@ -177,15 +184,11 @@ export default function OnboardingPage() {
   }
 
   const handleLogoSelect = (file: File | null) => {
-    if (logoPreview) URL.revokeObjectURL(logoPreview)
+    if (logoPreview) {
+      URL.revokeObjectURL(logoPreview)
+    }
     setLogoFile(file)
     setLogoPreview(file ? URL.createObjectURL(file) : null)
-  }
-
-  const handleFirstProductImageSelect = (file: File | null) => {
-    if (firstProductImagePreview) URL.revokeObjectURL(firstProductImagePreview)
-    setFirstProductImage(file)
-    setFirstProductImagePreview(file ? URL.createObjectURL(file) : null)
   }
 
   const uploadFile = async (bucket: string, path: string, file: File) => {
@@ -201,25 +204,36 @@ export default function OnboardingPage() {
     return data.path
   }
 
+  const canContinueStep1 =
+    storeSlug.length >= 3 &&
+    slugAvailable === true &&
+    mobileNumber.length === 10 &&
+    storeName.trim().length > 0 &&
+    (!requiresFullName || fullName.trim().length > 0)
+
+  const canContinueStep4 = upiSkipped || !upiId.trim() || validateUPIId(upiId.trim())
+  const canContinueStep5 = firstProductIntent !== null
+
+  const progress = (step / 6) * 100
+  const displayName = (requiresFullName ? fullName : storeName).trim()
+  const step1Heading = displayName
+    ? `Hey ${displayName}! Start making money with LinkMyStore now!`
+    : 'Start making money with LinkMyStore now!'
+
   const goLive = async () => {
     if (!user) return
 
-    if (!fullName.trim() || !storeName.trim() || storeSlug.length < 3 || mobileNumber.length !== 10 || slugAvailable !== true) {
-      toast.error('Please complete store setup details')
+    if (!canContinueStep1) {
+      toast.error('Please complete username, store name, and mobile number')
       setStep(1)
       return
     }
 
-    if (upiId.trim() && !validateUPIId(upiId.trim())) {
-      toast.error('Please enter a valid UPI ID')
-      setStep(3)
-      return
-    }
-
-    if (firstProductMode === 'own') {
-      const parsedPrice = Number(firstProductPrice)
-      if (!firstProductTitle.trim() || Number.isNaN(parsedPrice) || parsedPrice <= 0) {
-        toast.error('Enter a valid first product name and price, or skip this step')
+    const normalizedUpi = upiId.trim().toLowerCase()
+    if (normalizedUpi) {
+      const verification = await verifyUpiId(normalizedUpi)
+      if (!verification.valid) {
+        toast.error(verification.message || 'Please enter a valid UPI ID')
         setStep(4)
         return
       }
@@ -237,21 +251,23 @@ export default function OnboardingPage() {
         profileImageUrl = data.publicUrl
       }
 
+      const resolvedFullName = fullName.trim() || (user.user_metadata?.full_name as string | undefined) || null
+      const resolvedStoreName = storeName.trim()
+
       const creatorPayload: Record<string, unknown> = {
         user_id: user.id,
         phone: mobileNumber,
         mobile_number: mobileNumber,
         whatsapp_number: mobileNumber,
         email: user.email || null,
-        full_name: fullName.trim(),
+        full_name: resolvedFullName,
         store_slug: storeSlug,
-        store_name: storeName.trim(),
-        category,
-        bio: bio.trim() || null,
+        store_name: resolvedStoreName,
+        bio: null,
         profile_image_url: profileImageUrl,
         instagram_handle: instagramHandle.trim() || null,
         return_policy: returnPolicy.trim() || buildDefaultPolicy(mobileNumber, user.email || null),
-        bank_account: upiId.trim() ? { upi_id: upiId.trim() } : {},
+        bank_account: normalizedUpi ? { upi_id: normalizedUpi } : {},
       }
 
       const { data: creator, error: creatorError } = await supabase
@@ -277,35 +293,13 @@ export default function OnboardingPage() {
         throw new Error(settingsError.message)
       }
 
-      if (firstProductMode === 'own') {
-        let firstImageUrl: string[] = []
-        if (firstProductImage) {
-          const ext = firstProductImage.name.split('.').pop() || 'jpg'
-          const imagePath = `products/${creator.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-          const uploadedPath = await uploadFile('product-images', imagePath, firstProductImage)
-          const { data } = supabase.storage.from('product-images').getPublicUrl(uploadedPath)
-          firstImageUrl = [data.publicUrl]
-        }
-
-        const { error: productError } = await supabase.from('products').insert({
-          creator_id: creator.id,
-          title: firstProductTitle.trim(),
-          description: firstProductDescription.trim() || null,
-          price: Math.round(Number(firstProductPrice) * 100),
-          type: 'physical',
-          images: firstImageUrl,
-          variants: [],
-          category,
-          is_active: true,
-        })
-
-        if (productError) {
-          throw new Error(productError.message)
-        }
-      }
-
       toast.success('Your store is live')
-      router.push('/dashboard')
+      const redirectTarget =
+        firstProductIntent === 'later'
+          ? '/dashboard/products/new?from=onboarding=1&intent=later'
+          : '/dashboard/products/new?from=onboarding=1'
+
+      router.push(redirectTarget)
       router.refresh()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to complete onboarding')
@@ -314,345 +308,418 @@ export default function OnboardingPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="w-8 h-8 animate-spin text-[#E8651A]" />
-      </div>
-    )
-  }
-
-  const canContinueStep1 =
-    fullName.trim().length > 0 &&
-    storeName.trim().length > 0 &&
-    storeSlug.length >= 3 &&
-    slugAvailable === true &&
-    mobileNumber.length === 10
-
-  const canContinueStep2 = category.length > 0
-
-  const canContinueStep3 = upiSkipped || !upiId.trim() || validateUPIId(upiId.trim())
-
-  const progress = (step / 5) * 100
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-sm text-gray-500">Step {step} of 5</p>
-        <div className="w-full h-2 rounded-full bg-gray-100 mt-2 overflow-hidden">
-          <div className="h-full bg-[#E8651A] transition-all" style={{ width: `${progress}%` }} />
-        </div>
-      </div>
-
-      {step === 1 && (
-        <div className="card p-6 space-y-4">
-          <h2 className="text-xl font-semibold text-[#1A1A2E]">Create Your Store</h2>
+  const renderStep = () => {
+    if (step === 1) {
+      return (
+        <motion.div
+          key="step-1"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.22 }}
+          className="card p-6 space-y-4"
+        >
+          <h2 className="text-xl font-semibold text-[#1A1A2E]">{step1Heading}</h2>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Full Name</label>
+            <p className="mb-1 block text-sm font-medium">Choose Username</p>
+            <div className="flex items-center rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
+              <span className="mr-2 text-xs text-gray-500">linkmystore.in/</span>
+              <input
+                value={storeSlug}
+                onChange={(event) => handleSlugChange(event.target.value)}
+                className="w-full bg-transparent text-sm outline-none"
+                placeholder="username"
+              />
+              {slugChecking && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
+            </div>
+            {storeSlug.length > 0 && storeSlug.length < 3 && (
+              <p className="mt-1 text-xs text-red-500">Username must be at least 3 characters.</p>
+            )}
+            {slugAvailable === false && storeSlug.length >= 3 && (
+              <p className="mt-1 text-xs text-red-500">This username is already taken.</p>
+            )}
+            {slugAvailable === true && (
+              <p className="mt-1 text-xs text-green-600">Username is available.</p>
+            )}
+          </div>
+
+          {requiresFullName && (
             <input
               value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              onChange={(event) => setFullName(event.target.value)}
               className="input-field"
-              placeholder="Your full name"
+              placeholder="Full name"
             />
+          )}
+
+          <div>
+            <input
+              value={storeName}
+              onChange={(event) => setStoreName(event.target.value)}
+              className="input-field"
+              placeholder="Store name"
+            />
+            <p className="mt-1 text-xs text-gray-500">You can edit your store name later in dashboard.</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Mobile Number</label>
-            <div className="flex">
-              <span className="bg-gray-50 px-3 py-3 rounded-l-xl border border-r-0 border-gray-200 text-gray-500 text-sm">+91</span>
+            <label className="mb-1 block text-sm font-medium">Mobile Number</label>
+            <div className="flex gap-2">
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-600">
+                <IndiaFlagIcon />
+                +91
+              </span>
               <input
                 value={mobileNumber}
-                onChange={(e) => handleMobileChange(e.target.value)}
-                className="input-field rounded-l-none"
+                onChange={(event) => handleMobileChange(event.target.value)}
+                className="input-field"
                 placeholder="9876543210"
               />
             </div>
           </div>
+        </motion.div>
+      )
+    }
 
+    if (step === 2) {
+      return (
+        <motion.div
+          key="step-2"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.22 }}
+          className="card p-6 space-y-4"
+        >
+          <h2 className="text-xl font-semibold text-[#1A1A2E]">Instagram</h2>
           <div>
-            <label className="block text-sm font-medium mb-1">Store Name</label>
-            <input
-              value={storeName}
-              onChange={(e) => handleStoreNameChange(e.target.value)}
-              className="input-field"
-              placeholder="My Store"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Store URL</label>
-            <div className="flex items-center rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
-              <span className="text-xs text-gray-500 mr-2">linkmystore.in/</span>
+            <div className="flex items-center">
+              <span className="flex items-center gap-1 rounded-l-xl border border-r-0 border-gray-200 bg-gray-50 px-3 py-3 text-gray-500">
+                <Instagram className="h-4 w-4" />@
+              </span>
               <input
-                value={storeSlug}
-                onChange={(e) => handleSlugChange(e.target.value)}
-                className="w-full bg-transparent text-sm outline-none"
-                placeholder="your-store"
+                value={instagramHandle}
+                onChange={(event) => setInstagramHandle(event.target.value.replace(/^@/, ''))}
+                className="input-field rounded-l-none"
+                placeholder="instagram-handle"
               />
-              {slugChecking && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
             </div>
-            {slugAvailable === false && (
-              <p className="text-xs text-red-500 mt-1">This slug is already taken.</p>
-            )}
-            {slugAvailable === true && (
-              <p className="text-xs text-green-600 mt-1">Slug is available.</p>
-            )}
           </div>
-        </div>
-      )}
+        </motion.div>
+      )
+    }
 
-      {step === 2 && (
-        <div className="card p-6 space-y-4">
-          <h2 className="text-xl font-semibold text-[#1A1A2E]">Category And Bio</h2>
+    if (step === 3) {
+      return (
+        <motion.div
+          key="step-3"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.22 }}
+          className="card p-6 space-y-4"
+        >
+          <h2 className="text-xl font-semibold text-[#1A1A2E]">Choose your Logo / Profile</h2>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Category</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as (typeof STORE_CATEGORIES)[number])}
-              className="input-field"
-            >
-              {STORE_CATEGORIES.map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Short Bio</label>
-            <textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              className="input-field resize-none"
-              rows={4}
-              maxLength={200}
-              placeholder="Tell buyers what you sell"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Instagram Handle (optional)</label>
-            <input
-              value={instagramHandle}
-              onChange={(e) => setInstagramHandle(e.target.value.replace(/^@/, ''))}
-              className="input-field"
-              placeholder="yourhandle"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Logo / Profile Photo (optional)</label>
+          <label className="block cursor-pointer rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center hover:border-[#E8651A]/50">
+            <UploadCloud className="mx-auto h-6 w-6 text-gray-500" />
+            <p className="mt-2 text-sm font-medium text-gray-700">Upload logo</p>
+            <p className="mt-0.5 text-xs text-gray-500">PNG, JPG, or WebP</p>
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => handleLogoSelect(e.target.files?.[0] || null)}
-              className="input-field"
+              onChange={(event) => handleLogoSelect(event.target.files?.[0] || null)}
+              className="hidden"
             />
-            {logoPreview && (
-              <ImagePreview src={logoPreview} alt="Logo preview" />
-            )}
-          </div>
-        </div>
-      )}
+          </label>
 
-      {step === 3 && (
-        <div className="card p-6 space-y-4">
-          <h2 className="text-xl font-semibold text-[#1A1A2E]">Add Payment Details</h2>
-          <p className="text-sm text-gray-500">Buyers will pay you directly on this UPI ID.</p>
+          {logoPreview && (
+            <div className="mt-2">
+              <Image
+                src={logoPreview}
+                alt="Logo preview"
+                width={96}
+                height={96}
+                unoptimized
+                className="h-24 w-24 rounded-xl border border-gray-200 object-cover"
+              />
+            </div>
+          )}
+        </motion.div>
+      )
+    }
+
+    if (step === 4) {
+      return (
+        <motion.div
+          key="step-4"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.22 }}
+          className="card p-6 space-y-4"
+        >
+          <h2 className="text-xl font-semibold text-[#1A1A2E]">Add UPI Details</h2>
+          <p className="text-sm text-gray-500">Buyers pay you directly on this UPI ID. You can skip and add later.</p>
 
           <div>
-            <label className="block text-sm font-medium mb-1">UPI ID</label>
             <input
               value={upiId}
-              onChange={(e) => {
-                setUpiId(e.target.value.trim())
-                if (e.target.value.trim()) setUpiSkipped(false)
+              onChange={(event) => {
+                setUpiId(event.target.value.trim())
+                if (event.target.value.trim()) {
+                  setUpiSkipped(false)
+                }
               }}
               className="input-field"
               placeholder="yourname@upi"
             />
-            {upiId && !validateUPIId(upiId) && (
-              <p className="text-xs text-red-500 mt-1">Enter a valid UPI ID format.</p>
+            {upiId.trim().length > 0 && !validateUPIId(upiId.trim()) && (
+              <p className="mt-1 text-xs text-red-500">Enter a valid UPI ID format.</p>
             )}
           </div>
+        </motion.div>
+      )
+    }
+
+    if (step === 5) {
+      return (
+        <motion.div
+          key="step-5"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.22 }}
+          className="card p-6 space-y-4"
+        >
+          <h2 className="text-xl font-semibold text-[#1A1A2E]">What next?</h2>
+          <p className="text-sm text-gray-500">You can add your first product now or do it later.</p>
 
           <button
             type="button"
-            onClick={() => {
-              setUpiId('')
-              setUpiSkipped(true)
-            }}
-            className="text-sm text-gray-500 hover:text-gray-700"
+            onClick={() => setFirstProductIntent('add_now')}
+            className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${
+              firstProductIntent === 'add_now'
+                ? 'border-[#E8651A] bg-[#F0ECF7]'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
           >
-            I will add this later
+            Add your first product
           </button>
+
+          <button
+            type="button"
+            onClick={() => setFirstProductIntent('later')}
+            className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${
+              firstProductIntent === 'later'
+                ? 'border-[#E8651A] bg-[#F0ECF7]'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            I will do it later
+          </button>
+        </motion.div>
+      )
+    }
+
+    return (
+      <motion.div
+        key="step-6"
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ duration: 0.22 }}
+        className="card p-6 space-y-4"
+      >
+        <h2 className="text-xl font-semibold text-[#1A1A2E]">Policies + Go Live</h2>
+        <p className="text-sm text-gray-500">Customize your return/refund policy before publishing.</p>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">Return / Refund Policy</label>
+          <textarea
+            value={returnPolicy}
+            onChange={(event) => setReturnPolicy(event.target.value)}
+            rows={5}
+            className="input-field resize-none"
+          />
         </div>
-      )}
 
-      {step === 4 && (
-        <div className="card p-6 space-y-4">
-          <h2 className="text-xl font-semibold text-[#1A1A2E]">Add First Product</h2>
+        <div className="rounded-xl border border-[#E8651A]/20 bg-[#F0ECF7] p-4">
+          <p className="text-xs text-gray-500">Your store link</p>
+          <p className="mt-1 text-sm font-semibold text-[#1A1A2E]">linkmystore.in/{storeSlug}</p>
+        </div>
+      </motion.div>
+    )
+  }
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-[#E8651A]" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-center">
+        <Image
+          src="/logo-v2.png"
+          alt="LinkMyStore"
+          width={82}
+          height={82}
+          className="h-20 w-auto"
+          style={{ width: 'auto' }}
+        />
+      </div>
+
+      <div>
+        <p className="text-sm text-gray-500">Step {step} of 6</p>
+        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100">
+          <div
+            className="h-full transition-all"
+            style={{
+              width: `${progress}%`,
+              background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%)',
+            }}
+          />
+        </div>
+      </div>
+
+      <AnimatePresence mode="wait">{renderStep()}</AnimatePresence>
+
+      <div className="space-y-3">
+        {step > 1 && (
+          <button
+            type="button"
+            onClick={() => setStep((prev) => (prev > 1 ? ((prev - 1) as Step) : prev))}
+            disabled={saving}
+            className="btn-secondary inline-flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
+        )}
+
+        {step === 1 && (
+          <button
+            onClick={() => canContinueStep1 && setStep(2)}
+            disabled={!canContinueStep1 || saving}
+            className="btn-primary inline-flex w-full items-center justify-center gap-2 disabled:opacity-50"
+          >
+            Next
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        )}
+
+        {step === 2 && (
+          <>
             <button
-              type="button"
-              onClick={() => setFirstProductMode('own')}
-              className={`rounded-xl border px-3 py-2 text-sm ${firstProductMode === 'own' ? 'border-[#E8651A] bg-[#FFF8F3]' : 'border-gray-200'}`}
+              onClick={() => setStep(3)}
+              disabled={saving}
+              className="btn-primary inline-flex w-full items-center justify-center gap-2"
             >
-              Own Product
+              Next
+              <ArrowRight className="h-4 w-4" />
             </button>
             <button
               type="button"
-              onClick={() => setFirstProductMode('affiliate')}
-              className={`rounded-xl border px-3 py-2 text-sm ${firstProductMode === 'affiliate' ? 'border-[#E8651A] bg-[#FFF8F3]' : 'border-gray-200'}`}
-            >
-              Affiliate
-            </button>
-            <button
-              type="button"
-              onClick={() => setFirstProductMode('skip')}
-              className={`rounded-xl border px-3 py-2 text-sm ${firstProductMode === 'skip' ? 'border-[#E8651A] bg-[#FFF8F3]' : 'border-gray-200'}`}
+              onClick={() => {
+                setInstagramHandle('')
+                setStep(3)
+              }}
+              className="block text-left text-sm text-gray-500 underline-offset-2 hover:underline"
             >
               Skip
             </button>
-          </div>
+          </>
+        )}
 
-          {firstProductMode === 'affiliate' && (
-            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-3 text-sm text-gray-600">
-              Affiliate product setup continues in dashboard after go-live.
-            </div>
-          )}
+        {step === 3 && (
+          <>
+            <button
+              onClick={() => setStep(4)}
+              disabled={saving}
+              className="btn-primary inline-flex w-full items-center justify-center gap-2"
+            >
+              Next
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                handleLogoSelect(null)
+                setStep(4)
+              }}
+              className="block text-left text-sm text-gray-500 underline-offset-2 hover:underline"
+            >
+              Skip
+            </button>
+          </>
+        )}
 
-          {firstProductMode === 'own' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium mb-1">Product Name</label>
-                <input
-                  value={firstProductTitle}
-                  onChange={(e) => setFirstProductTitle(e.target.value)}
-                  className="input-field"
-                  placeholder="Example: Handmade Earrings"
-                />
-              </div>
+        {step === 4 && (
+          <>
+            <button
+              onClick={() => {
+                if (!canContinueStep4) return
+                setStep(5)
+              }}
+              disabled={!canContinueStep4 || saving}
+              className="btn-primary inline-flex w-full items-center justify-center gap-2 disabled:opacity-50"
+            >
+              Next
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUpiId('')
+                setUpiSkipped(true)
+                setStep(5)
+              }}
+              className="block text-left text-sm text-gray-500 underline-offset-2 hover:underline"
+            >
+              Skip
+            </button>
+          </>
+        )}
 
-              <div>
-                <label className="block text-sm font-medium mb-1">Price (INR)</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={firstProductPrice}
-                  onChange={(e) => setFirstProductPrice(e.target.value)}
-                  className="input-field"
-                  placeholder="499"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Description (optional)</label>
-                <textarea
-                  value={firstProductDescription}
-                  onChange={(e) => setFirstProductDescription(e.target.value)}
-                  className="input-field resize-none"
-                  rows={3}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Product Photo (optional)</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFirstProductImageSelect(e.target.files?.[0] || null)}
-                  className="input-field"
-                />
-                {firstProductImagePreview && (
-                  <ImagePreview src={firstProductImagePreview} alt="Product preview" />
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {step === 5 && (
-        <div className="card p-6 space-y-4">
-          <h2 className="text-xl font-semibold text-[#1A1A2E]">Policies And Go Live</h2>
-          <p className="text-sm text-gray-500">Customize your return and refund policy.</p>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Return / Refund Policy</label>
-            <textarea
-              value={returnPolicy}
-              onChange={(e) => setReturnPolicy(e.target.value)}
-              rows={5}
-              className="input-field resize-none"
-            />
-          </div>
-
-          <div className="rounded-xl bg-[#FFF8F3] border border-[#E8651A]/20 p-4">
-            <p className="text-xs text-gray-500">Your store link</p>
-            <p className="text-sm font-semibold text-[#1A1A2E] mt-1">linkmystore.in/{storeSlug}</p>
-          </div>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => setStep((prev) => (prev > 1 ? ((prev - 1) as Step) : prev))}
-          disabled={step === 1 || saving}
-          className="btn-secondary inline-flex items-center gap-2 disabled:opacity-50"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back
-        </button>
-
-        {step < 5 ? (
+        {step === 5 && (
           <button
-            onClick={() => {
-              if (step === 1 && !canContinueStep1) return
-              if (step === 2 && !canContinueStep2) return
-              if (step === 3 && !canContinueStep3) return
-              setStep((prev) => (prev < 5 ? ((prev + 1) as Step) : prev))
-            }}
-            disabled={
-              saving ||
-              (step === 1 && !canContinueStep1) ||
-              (step === 2 && !canContinueStep2) ||
-              (step === 3 && !canContinueStep3)
-            }
-            className="btn-primary inline-flex items-center gap-2 disabled:opacity-50"
+            onClick={() => canContinueStep5 && setStep(6)}
+            disabled={!canContinueStep5 || saving}
+            className="btn-primary inline-flex w-full items-center justify-center gap-2 disabled:opacity-50"
           >
-            Continue
-            <ArrowRight className="w-4 h-4" />
+            Next
+            <ArrowRight className="h-4 w-4" />
           </button>
-        ) : (
+        )}
+
+        {step === 6 && (
           <button
             onClick={goLive}
             disabled={saving}
-            className="btn-primary inline-flex items-center gap-2 disabled:opacity-50"
+            className="btn-primary inline-flex w-full items-center justify-center gap-2 disabled:opacity-50"
           >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {saving ? 'Going Live...' : 'Go Live'}
           </button>
         )}
-      </div>
-    </div>
-  )
-}
 
-function ImagePreview({ src, alt }: { src: string; alt: string }) {
-  return (
-    <div className="mt-2">
-      <Image
-        src={src}
-        alt={alt}
-        width={80}
-        height={80}
-        unoptimized
-        className="w-20 h-20 rounded-xl object-cover border border-gray-200"
-      />
+        <p className="text-center text-xs text-gray-500">
+          By continuing, you agree to our{' '}
+          <Link href="/terms" className="text-[#E8651A] hover:underline">
+            Terms of Service
+          </Link>{' '}
+          and{' '}
+          <Link href="/privacy" className="text-[#E8651A] hover:underline">
+            Privacy Policy
+          </Link>
+          .
+        </p>
+      </div>
     </div>
   )
 }

@@ -1,171 +1,264 @@
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
-  Zap,
   ArrowRight,
-  Smartphone,
+  BellRing,
+  CheckCircle2,
+  CircleDot,
   IndianRupee,
-  MessageCircle,
   Package,
   ShoppingBag,
-  CheckCircle2,
-  BarChart3,
+  Store,
+  Workflow,
 } from 'lucide-react'
 import Navbar from '@/components/landing/Navbar'
 import ScrollReveal from '@/components/landing/ScrollReveal'
 import FAQ from '@/components/landing/FAQ'
+import { createClient } from '@/lib/supabase/server'
 
-const features = [
+const featureCards = [
   {
-    icon: Smartphone,
-    title: 'Mobile-First Storefront',
-    description: 'A beautiful, fast-loading store page designed for mobile. Your followers see products and buy in seconds.',
-    iconBg: 'bg-blue-100',
-    iconColor: 'text-blue-600',
+    icon: Store,
+    title: 'Storefronts that feel yours',
+    description:
+      'Launch a branded seller page with your products, links, pricing, and policies in one place.',
+    accent: 'bg-[#edf2ff] text-[#12224b]',
   },
   {
     icon: IndianRupee,
-    title: 'UPI Payments',
-    description: 'Razorpay-powered checkout with UPI as the default payment option. Also accepts cards and netbanking.',
-    iconBg: 'bg-green-100',
-    iconColor: 'text-green-600',
+    title: 'Direct manual UPI checkout',
+    description:
+      'Buyers pay your UPI ID directly and submit proof, so you stay in control without waiting for a gateway setup.',
+    accent: 'bg-[#fff1e4] text-[#d1701d]',
   },
   {
-    icon: MessageCircle,
-    title: 'WhatsApp Alerts',
-    description: 'Get instant WhatsApp notifications when someone buys. Never miss an order.',
-    iconBg: 'bg-emerald-100',
-    iconColor: 'text-emerald-600',
+    icon: BellRing,
+    title: 'Seller-first order notifications',
+    description:
+      'Get order alerts by email and dashboard so you can verify payment and fulfil fast.',
+    accent: 'bg-[#fff1e4] text-[#d1701d]',
   },
   {
     icon: Package,
-    title: 'Physical + Digital',
-    description: 'Sell physical products with shipping or digital products with instant download. Both supported.',
-    iconBg: 'bg-purple-100',
-    iconColor: 'text-purple-600',
+    title: 'Works for physical and digital goods',
+    description:
+      'Sell products, templates, downloads, bookings, and affiliate picks from the same seller workspace.',
+    accent: 'bg-[#f3f6fc] text-[#12224b]',
+  },
+  {
+    icon: Workflow,
+    title: 'Seller-controlled fulfilment',
+    description:
+      'You decide when an order is confirmed, when a file is delivered, and how buyer support is handled.',
+    accent: 'bg-[#edf2ff] text-[#12224b]',
   },
   {
     icon: ShoppingBag,
-    title: 'Order Management',
-    description: 'Track orders, update shipping status, add tracking numbers. Your buyers get notified automatically.',
-    iconBg: 'bg-orange-100',
-    iconColor: 'text-orange-600',
-  },
-  {
-    icon: BarChart3,
-    title: 'Weekly Payouts',
-    description: 'Earnings are settled to your bank account every Monday. Only 5% platform fee.',
-    iconBg: 'bg-rose-100',
-    iconColor: 'text-rose-600',
+    title: 'Built for independent sellers',
+    description:
+      'LinkMyStore is storefront software, not a marketplace. Your customer relationship stays with you.',
+    accent: 'bg-[#fff7ea] text-[#d1701d]',
   },
 ]
 
-const pricingFeatures = [
-  'Up to 10 products',
-  'Unlimited orders',
-  'UPI + card payments',
-  'WhatsApp order alerts',
-  'Order management',
-  'Weekly bank payouts',
-  'Custom store themes',
-  'Physical + digital products',
+const paymentFlow = [
+  {
+    step: '01',
+    title: 'Buyer places the order',
+    description: "The checkout collects buyer details and shows the seller's manual UPI payment instructions.",
+  },
+  {
+    step: '02',
+    title: 'Buyer pays seller directly',
+    description: 'The buyer completes the UPI transfer outside the platform and submits the UTR or payment proof.',
+  },
+  {
+    step: '03',
+    title: 'Seller verifies and confirms',
+    description: 'The seller receives an email and dashboard alert, checks the payment, and confirms the order.',
+  },
+  {
+    step: '04',
+    title: 'Delivery happens after confirmation',
+    description: 'For instant downloads, the buyer gets the access email after seller confirmation. Other fulfilment stays with the seller.',
+  },
+]
+
+const freePlanFeatures = [
+  'Up to 5 own products',
+  'Manual UPI checkout',
+  'Email order notifications',
+  'Basic analytics',
+  '50% affiliate commission share',
+]
+
+const proPlanFeatures = [
+  'Unlimited own products',
+  'Premium themes and deeper analytics',
+  'WhatsApp notifications',
+  'Remove LinkMyStore branding',
+  '100% affiliate commission share',
 ]
 
 const faqItems = [
   {
-    question: 'Is LinkMyStore really free?',
-    answer: "Yes! There are no monthly fees or setup charges. We only charge a small 5% commission when you make a sale. If you don't sell anything, you pay nothing.",
+    question: 'Is LinkMyStore a marketplace?',
+    answer:
+      'No. LinkMyStore is seller-facing storefront software. Sellers manage their own listings, receive payments directly, and stay responsible for fulfilment.',
   },
   {
-    question: 'How do I receive my money?',
-    answer: 'All payments from buyers go through Razorpay. We process payouts to your bank account every Monday, after deducting the 5% platform fee.',
+    question: 'How does payment work right now?',
+    answer:
+      'The live flow is manual UPI. Buyers pay the seller directly, submit the UTR or proof, and the seller confirms the order after checking payment.',
   },
   {
-    question: 'What can I sell?',
-    answer: 'Both physical products (jewellery, clothing, art, crafts) and digital products (PDFs, templates, presets, e-books). If you can put a price on it, you can sell it here.',
+    question: 'Who handles delivery, refunds, or customer support?',
+    answer:
+      'The seller does. Buyers should contact the seller first for order fulfilment, refunds, returns, or delivery questions.',
   },
   {
-    question: 'Do my customers need to create an account?',
-    answer: 'No! Buyers can purchase with guest checkout — just their name, phone number, and payment. No signup friction.',
+    question: 'How are digital products delivered?',
+    answer:
+      'For instant-download products, the seller confirms the order first, then the buyer receives the download email. The delivery link can be limited or single-use.',
   },
   {
-    question: 'Can I use my own domain?',
-    answer: 'Currently, your store lives at linkmystore.in/yourname. Custom domains are coming soon!',
+    question: 'When should a buyer contact LinkMyStore?',
+    answer:
+      'Only for fraud, abuse, privacy issues, IP complaints, or repeated non-fulfilment after trying the seller first. Use the platform contact or reporting pages when escalation is needed.',
   },
   {
-    question: 'How is this different from selling on Instagram directly?',
-    answer: "Instagram doesn't have a checkout system in India. With LinkMyStore, you get a proper product page, UPI payment, order tracking, and a professional storefront — all from your bio link.",
+    question: 'Can I start free and upgrade later?',
+    answer:
+      'Yes. Start on the free plan, validate your products, and move to Pro when you want more control, better analytics, and higher affiliate retention.',
   },
 ]
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (user) {
+    const { data: creator } = await supabase
+      .from('creators')
+      .select('id')
+      .eq('user_id', user.id)
+      .single()
+
+    redirect(creator ? '/dashboard' : '/onboarding')
+  }
+
   return (
-    <div className="min-h-screen bg-white">
+    <div className="page-shell min-h-screen">
       <Navbar />
 
-      {/* ── HERO ─────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#FFF8F3] via-white to-orange-50" />
-        <div className="relative mx-auto max-w-6xl px-4 pb-20 pt-16 sm:px-6 sm:pt-24">
-          <div className="mx-auto max-w-3xl text-center">
+      <section className="relative overflow-hidden border-b border-[#dce5fb] bg-[radial-gradient(circle_at_12%_-18%,rgba(79,124,255,0.2),transparent_46%),radial-gradient(circle_at_92%_2%,rgba(122,93,255,0.17),transparent_42%),linear-gradient(180deg,#f8faff_0%,#f2f6ff_52%,#edf3ff_100%)]">
+        <div className="absolute inset-x-0 top-0 h-48 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.8),_transparent_70%)]" />
+        <div className="mx-auto max-w-6xl px-4 pb-16 pt-14 sm:px-6 sm:pb-20 sm:pt-18">
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-center">
+            <div>
+              <div className="flex items-center gap-4">
+                <Image src="/logo.png" alt="LinkMyStore" width={64} height={64} className="h-14 w-14 object-contain sm:h-16 sm:w-16" />
+                <span className="text-[2rem] font-bold leading-none tracking-tight text-[#111a38] sm:text-[2.35rem]">
+                  LinkMyStore
+                </span>
+              </div>
 
-            {/* Badge */}
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-[#FFF1E8] px-4 py-1.5 text-sm font-medium text-[#C75516]">
-              <Zap className="h-4 w-4" />
-              Set up your store in 5 minutes
+              <h1 className="mt-8 text-5xl font-bold leading-[0.96] tracking-[-0.02em] text-[#111a38] sm:text-6xl lg:text-[4.35rem]">
+                Build your store page.
+                <br />
+                Take direct UPI orders.
+                <br />
+                Fulfil on your terms.
+              </h1>
+
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-[#55627d] sm:text-xl">
+                LinkMyStore helps independent sellers publish a polished storefront, collect orders, receive manual
+                UPI payments directly to their own account, and confirm fulfilment without marketplace dependency.
+              </p>
+
+              <div className="mt-8 flex">
+                <Link
+                  href="/login"
+                  className="btn-primary inline-flex items-center justify-center gap-2 px-7 py-3.5 text-base"
+                >
+                  Start free <ArrowRight className="h-5 w-5" />
+                </Link>
+              </div>
             </div>
 
-            {/* H1 */}
-            <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl lg:text-6xl">
-              Sell on Instagram.
-              <br />
-              <span className="bg-gradient-to-r from-[#E8651A] to-orange-400 bg-clip-text text-transparent">
-                Get paid via UPI.
-              </span>
-            </h1>
+            <ScrollReveal className="relative">
+              <div className="relative overflow-hidden rounded-[34px] border border-[#dce5fb] bg-[linear-gradient(180deg,#ffffff_0%,#f6f9ff_46%,#eef3ff_100%)] p-6 shadow-[0_28px_72px_rgba(64,89,173,0.14)] sm:p-8">
+                <div className="absolute inset-x-0 top-0 h-36 bg-[radial-gradient(circle_at_top,_rgba(122,93,255,0.14),_transparent_58%)]" />
+                <div className="relative">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#4f7cff]">
+                      Current checkout model
+                    </p>
+                    <h2 className="mt-2 text-2xl font-semibold text-[#111a38]">
+                      Manual UPI, confirmed by the seller
+                    </h2>
+                  </div>
 
-            {/* Subtitle */}
-            <p className="mt-6 text-lg text-gray-600 sm:text-xl">
-              LinkMyStore gives you a beautiful storefront, UPI checkout, WhatsApp order alerts, and weekly payouts. Put one link in your Instagram bio and start selling.
+                  <div className="mt-6">
+                    {paymentFlow.map((item) => (
+                      <div key={item.step} className="flex gap-4 border-t border-[#e4eaf4] pt-4 first:border-t-0 first:pt-0">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(125deg,#4f7cff_0%,#7a5dff_100%)] text-sm font-bold text-white shadow-[0_12px_28px_rgba(79,124,255,0.28)]">
+                          {item.step}
+                        </div>
+                        <div>
+                          <h3 className="text-base font-semibold text-[#111a38]">{item.title}</h3>
+                          <p className="mt-1 text-sm leading-6 text-[#5a6884]">{item.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 border-t border-[#e4eaf4] pt-5">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-[#111a38]">
+                      <CircleDot className="h-4 w-4 text-[#4f7cff]" />
+                      Platform role
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-[#5a6884]">
+                      LinkMyStore provides the storefront, order tracking, and delivery workflow. The seller remains
+                      responsible for payment verification, fulfilment, and buyer support.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
+          </div>
+        </div>
+      </section>
+
+      <section id="how-it-works" className="py-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#4f7cff]">What you get</p>
+            <h2 className="mt-3 text-4xl font-bold tracking-[-0.015em] text-[#111a38] sm:text-5xl">
+              A clearer operating model for independent sellers
+            </h2>
+            <p className="mt-4 text-base leading-7 text-[#56647f] sm:text-lg">
+              Better storefronts, simpler order handling, and a payment flow that reflects how sellers are actually
+              operating today.
             </p>
-
-            {/* CTAs */}
-            <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#E8651A] px-8 py-3.5 text-base font-bold text-white shadow-lg shadow-[#E8651A]/25 transition hover:bg-[#C75516] hover:shadow-xl"
-              >
-                Create Your Store <ArrowRight className="h-5 w-5" />
-              </Link>
-              <p className="text-sm text-gray-500">No credit card required. Free to start.</p>
-            </div>
-
-            {/* URL pill */}
-            <div className="mt-12 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-5 py-3 text-sm shadow-sm">
-              <span className="text-gray-500">linkmystore.in/</span>
-              <span className="font-semibold text-[#E8651A]">your-store</span>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      {/* ── FEATURES ─────────────────────────────────────────────────── */}
-      <section className="border-t border-gray-100 bg-gray-50 py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold text-gray-900">Everything you need to sell online</h2>
-            <p className="mt-3 text-gray-600">No technical knowledge needed. We handle the infrastructure so you can focus on selling.</p>
           </div>
 
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((f, i) => (
-              <ScrollReveal key={f.title} delay={i * 70}>
-                <div className="rounded-2xl bg-white p-6 shadow-sm transition hover:shadow-md">
-                  <div className={`inline-flex rounded-xl p-3 ${f.iconBg} ${f.iconColor}`}>
-                    <f.icon className="h-6 w-6" />
+          <div className="mt-14 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+            {featureCards.map((feature, index) => (
+              <ScrollReveal key={feature.title} delay={index * 80}>
+                <div className="border-b border-[#dfe7fb] pb-8">
+                  <div className="flex items-start gap-4">
+                    <div className={`inline-flex rounded-2xl p-3 ${feature.accent}`}>
+                      <feature.icon className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold text-[#111a38]">{feature.title}</h3>
+                      <p className="mt-3 text-sm leading-7 text-[#58688b]">{feature.description}</p>
+                    </div>
                   </div>
-                  <h3 className="mt-4 text-base font-semibold text-gray-900">{f.title}</h3>
-                  <p className="mt-2 text-sm text-gray-600">{f.description}</p>
                 </div>
               </ScrollReveal>
             ))}
@@ -173,63 +266,106 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ─────────────────────────────────────────────── */}
-      <section className="py-20">
+      <section className="border-y border-[#dce5fb] bg-[linear-gradient(180deg,#f9fbff_0%,#f2f6ff_100%)] py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold text-gray-900">How it works</h2>
-            <p className="mt-3 text-gray-600">Three simple steps to start selling</p>
-          </div>
+          <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#4f7cff]">Platform boundary</p>
+              <h2 className="mt-3 text-4xl font-bold tracking-[-0.015em] text-[#111a38] sm:text-5xl">
+                Your store, your buyer, your fulfilment.
+              </h2>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-[#56647f] sm:text-lg">
+                LinkMyStore is built to make the boundaries clear. Sellers own the customer relationship and
+                operational responsibility. The platform provides software rails, notification workflows, and a place
+                for reporting when something goes wrong.
+              </p>
+            </div>
 
-          <div className="mt-12 grid gap-8 sm:grid-cols-3">
-            {[
-              { num: '1', title: 'Create Your Store', desc: 'Sign up, choose your store URL, and add your first product. Takes less than 5 minutes.' },
-              { num: '2', title: 'Share Your Link', desc: 'Put linkmystore.in/your-store in your Instagram bio. Share it in stories and posts.' },
-              { num: '3', title: 'Get Paid', desc: 'Customers browse, pay via UPI, and you get notified on WhatsApp. Money in your bank weekly.' },
-            ].map((step, i) => (
-              <ScrollReveal key={step.num} delay={i * 120}>
-                <div className="text-center">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#E8651A] text-xl font-bold text-white shadow-lg shadow-[#E8651A]/25">
-                    {step.num}
-                  </div>
-                  <h3 className="mt-5 text-lg font-semibold text-gray-900">{step.title}</h3>
-                  <p className="mt-2 text-sm text-gray-600">{step.desc}</p>
+            <div className="grid gap-8 sm:grid-cols-3">
+              {[
+                {
+                  title: 'Seller owns',
+                  body: 'Listings, pricing, manual UPI setup, verification, delivery, returns, and fulfilment.',
+                },
+                {
+                  title: 'Buyer uses',
+                  body: 'A simple storefront and checkout flow, then pays the seller directly and shares proof.',
+                },
+                {
+                  title: 'Platform handles',
+                  body: 'Software, order records, seller alerts, digital-delivery triggers, and reporting channels.',
+                },
+              ].map((item) => (
+                <div key={item.title} className="border-t border-[#dfe7fb] pt-5">
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#4f7cff]">{item.title}</p>
+                  <p className="mt-3 text-sm leading-7 text-[#556486]">{item.body}</p>
                 </div>
-              </ScrollReveal>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── PRICING ──────────────────────────────────────────────────── */}
-      <section className="border-t border-gray-100 bg-gray-50 py-20">
+      <section id="pricing" className="py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="mx-auto max-w-md text-center">
-            <h2 className="text-3xl font-bold text-gray-900">Simple pricing</h2>
-            <p className="mt-3 text-gray-600">No monthly fees. No setup costs. We only earn when you earn.</p>
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#4f7cff]">Pricing</p>
+            <h2 className="mt-3 text-4xl font-bold tracking-[-0.015em] text-[#111a38] sm:text-5xl">
+              Start free. Upgrade when the business needs it.
+            </h2>
+            <p className="mt-4 text-base leading-7 text-[#56647f] sm:text-lg">
+              The free plan is enough to validate your offer. Pro adds more control, more analytics, and cleaner branding.
+            </p>
+          </div>
 
-            <ScrollReveal delay={100}>
-              <div className="mt-8 rounded-2xl border-2 border-[#E8651A] bg-white p-8 shadow-lg">
-                <p className="text-sm font-medium uppercase tracking-wide text-[#E8651A]">Free Forever</p>
-                <p className="mt-4 text-5xl font-extrabold text-gray-900">
-                  5%<span className="text-lg font-medium text-gray-500"> per sale</span>
+          <div className="mt-12 grid gap-6 lg:grid-cols-[0.88fr_1.12fr]">
+            <ScrollReveal delay={80}>
+              <div className="h-full rounded-[26px] border border-[#dce5fb] bg-[linear-gradient(180deg,#ffffff_0%,#f6f9ff_100%)] px-6 py-8 shadow-[0_18px_48px_rgba(64,89,173,0.09)] md:py-10">
+                <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#51607d]">Free</p>
+                <p className="mt-4 text-5xl font-semibold text-[#12224b]">
+                  {'\u20B9'}0
+                  <span className="text-base font-medium text-[#69789a]"> / month</span>
                 </p>
-                <p className="mt-2 text-sm text-gray-500">+ Razorpay payment processing fee (~2%)</p>
-
-                <ul className="mt-8 space-y-3 text-left">
-                  {pricingFeatures.map((feat) => (
-                    <li key={feat} className="flex items-center gap-2 text-sm text-gray-700">
-                      <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-green-500" />
-                      {feat}
+                <p className="mt-3 text-sm leading-6 text-[#58688b]">
+                  Best for first-time sellers who need a strong starting point without setup friction.
+                </p>
+                <ul className="mt-7 space-y-3">
+                  {freePlanFeatures.map((feature) => (
+                    <li key={feature} className="flex items-center gap-3 text-sm text-[#33415e]">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-[#12224b]" />
+                      {feature}
                     </li>
                   ))}
                 </ul>
+                <Link href="/login" className="btn-primary mt-8 block w-full py-3 text-center text-sm font-semibold">
+                  Start free
+                </Link>
+              </div>
+            </ScrollReveal>
 
-                <Link
-                  href="/login"
-                  className="mt-8 block w-full rounded-xl bg-[#E8651A] py-3 text-center text-sm font-bold text-white transition hover:bg-[#C75516]"
-                >
-                  Start Selling Today
+            <ScrollReveal delay={140}>
+              <div className="relative h-full overflow-hidden rounded-[30px] border border-[#cddafc] bg-[linear-gradient(145deg,#edf2ff_0%,#e3ecff_45%,#d8e3ff_100%)] px-6 py-8 shadow-[0_28px_68px_rgba(79,124,255,0.22)] md:px-8 md:py-10">
+                <div className="absolute right-6 top-6 rounded-full bg-[linear-gradient(125deg,#4f7cff_0%,#7a5dff_100%)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white">
+                  Most popular
+                </div>
+                <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#4f7cff]">Pro</p>
+                <p className="mt-4 text-5xl font-bold text-[#111a38]">
+                  {'\u20B9'}299
+                  <span className="text-base font-medium text-[#69789a]"> / month</span>
+                </p>
+                <p className="mt-3 text-sm leading-6 text-[#58688b]">
+                  For sellers who want better brand control, stronger reporting, and higher affiliate retention.
+                </p>
+                <ul className="mt-7 space-y-3">
+                  {proPlanFeatures.map((feature) => (
+                    <li key={feature} className="flex items-center gap-3 text-sm text-[#33415e]">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-[#4f7cff]" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/dashboard/plan" className="btn-primary mt-8 inline-flex w-full items-center justify-center gap-2 px-5 py-3 text-sm font-semibold">
+                  Upgrade to Pro
                 </Link>
               </div>
             </ScrollReveal>
@@ -237,47 +373,106 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── FAQ ──────────────────────────────────────────────────────── */}
-      <section className="py-20 bg-white">
-        <div className="mx-auto max-w-2xl px-4 sm:px-6">
+      <section id="faq" className="border-t border-[#e4eaf4] bg-[linear-gradient(180deg,#fffdfa_0%,#f5f8ff_100%)] py-24">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-900">Common questions</h2>
-            <p className="mt-3 text-gray-600">Everything you need to know before you start</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#4f7cff]">FAQ</p>
+            <h2 className="mt-3 text-4xl font-bold tracking-[-0.015em] text-[#111a38] sm:text-5xl">
+              Questions sellers and buyers usually ask
+            </h2>
+            <p className="mt-4 text-base leading-7 text-[#56647f] sm:text-lg">
+              These answers reflect the platform as it works today, especially the current manual UPI flow.
+            </p>
           </div>
-          <ScrollReveal delay={100} className="mt-10">
+          <ScrollReveal delay={80} className="mt-10">
             <FAQ items={faqItems} />
           </ScrollReveal>
         </div>
       </section>
 
-      {/* ── FINAL CTA ────────────────────────────────────────────────── */}
-      <section className="bg-gradient-to-r from-[#E8651A] to-orange-400 py-16">
-        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
+      <section className="py-24">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <ScrollReveal>
-            <h2 className="text-3xl font-bold text-white">
-              Ready to turn your Instagram into a business?
-            </h2>
-            <p className="mt-3 text-lg text-orange-100">
-              Join hundreds of Indian creators already selling with LinkMyStore.
-            </p>
-            <Link
-              href="/login"
-              className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-8 py-3.5 text-base font-bold text-[#E8651A] shadow-lg transition hover:bg-gray-50"
-            >
-              Create Your Free Store <ArrowRight className="h-5 w-5" />
-            </Link>
+            <div className="overflow-hidden rounded-[34px] border border-[#dbe5fb] bg-[radial-gradient(circle_at_14%_0%,rgba(79,124,255,0.14),transparent_36%),linear-gradient(135deg,#f9fbff_0%,#f0f5ff_58%,#eaf1ff_100%)] px-7 py-10 shadow-[0_26px_64px_rgba(79,124,255,0.16)] sm:px-10 sm:py-12">
+              <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#4f7cff]">
+                    Ready to launch your seller page?
+                  </p>
+                  <h2 className="mt-3 text-3xl font-bold tracking-[-0.015em] text-[#111a38] sm:text-4xl">
+                    Start with your own products, direct UPI, and a cleaner way to take orders.
+                  </h2>
+                  <p className="mt-4 max-w-2xl text-base leading-7 text-[#56647f]">
+                    Use LinkMyStore for storefront software. Keep the customer relationship with the seller. Use the
+                    platform reporting channel only when a seller needs to be escalated.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <Link
+                    href="/login"
+                    className="btn-primary inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-semibold"
+                  >
+                    Start free <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    href="/report-store"
+                    className="btn-primary inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-semibold"
+                  >
+                    Report a seller
+                  </Link>
+                </div>
+              </div>
+            </div>
           </ScrollReveal>
         </div>
       </section>
 
-      {/* ── FOOTER ───────────────────────────────────────────────────── */}
-      <footer className="border-t border-gray-100 py-8">
-        <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
-          <div className="flex items-center justify-center gap-2">
-            <div className="h-6 w-6 rounded-md bg-[#E8651A]" />
-            <span className="text-sm font-semibold text-gray-900">LinkMyStore</span>
+      <footer className="nav-glass border-t border-[rgba(151,168,220,0.26)] [border-bottom:0] py-10">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <Image src="/logo.png" alt="LinkMyStore" width={48} height={48} className="h-11 w-11 object-contain" />
+              <div>
+                <p className="text-xl font-bold tracking-tight text-[#111a38]">LinkMyStore</p>
+                <p className="text-sm text-[#61739b]">Storefront software for independent sellers</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              <Link href="/pricing" className="text-[#556486] transition hover:text-[#4f7cff]">
+                Pricing
+              </Link>
+              <Link href="/shipping-policy" className="text-[#556486] transition hover:text-[#4f7cff]">
+                Shipping
+              </Link>
+              <Link href="/cancellation-refunds" className="text-[#556486] transition hover:text-[#4f7cff]">
+                Cancellation &amp; Refunds
+              </Link>
+              <Link href="/terms" className="text-[#556486] transition hover:text-[#4f7cff]">
+                Terms
+              </Link>
+              <Link href="/privacy" className="text-[#556486] transition hover:text-[#4f7cff]">
+                Privacy
+              </Link>
+              <Link href="/aup" className="text-[#556486] transition hover:text-[#4f7cff]">
+                AUP
+              </Link>
+              <Link href="/contact" className="text-[#556486] transition hover:text-[#4f7cff]">
+                Contact
+              </Link>
+              <Link href="/grievance" className="text-[#556486] transition hover:text-[#4f7cff]">
+                Grievance
+              </Link>
+              <Link href="/report-store" className="text-[#556486] transition hover:text-[#4f7cff]">
+                Report seller
+              </Link>
+            </div>
           </div>
-          <p className="mt-2 text-xs text-gray-500">© 2026 LinkMyStore. Made in India 🇮🇳 for Indian creators.</p>
+
+          <div className="mt-6 border-t border-[#dfe7fb] pt-6 text-center text-sm text-[#61739b]">
+            <p>&copy; 2026 LinkMyStore. Built in India for independent sellers.</p>
+          </div>
         </div>
       </footer>
     </div>

@@ -39,6 +39,24 @@ export async function POST(request: Request) {
 
         const supabase = createAdminClient()
 
+        const { data: product, error: productError } = await supabase
+            .from('products')
+            .select('id, creator_id, is_active, is_lead_magnet, digital_subtype, digital_file_url, digital_file_urls')
+            .eq('id', product_id)
+            .maybeSingle()
+
+        if (productError || !product || product.creator_id !== creator_id || product.is_active !== true) {
+            return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+        }
+
+        const isLeadMagnet = product.is_lead_magnet === true || product.digital_subtype === 'lead_magnet'
+        if (!isLeadMagnet) {
+            return NextResponse.json(
+                { error: 'Lead capture is only available for lead magnet products' },
+                { status: 400 }
+            )
+        }
+
         // Save lead
         const { data, error } = await supabase
             .from('lead_captures')
@@ -46,7 +64,7 @@ export async function POST(request: Request) {
                 product_id,
                 creator_id,
                 name,
-                email,
+                email: String(email).trim().toLowerCase(),
                 phone: phone || null,
             })
             .select('id')
@@ -55,13 +73,6 @@ export async function POST(request: Request) {
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 })
         }
-
-        // Get the product's digital file URL to deliver
-        const { data: product } = await supabase
-            .from('products')
-            .select('digital_file_url, digital_file_urls, title')
-            .eq('id', product_id)
-            .single()
 
         const downloadUrls: string[] = []
         if (product) {

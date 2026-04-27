@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import toast from 'react-hot-toast'
 import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, Circle } from 'lucide-react'
 

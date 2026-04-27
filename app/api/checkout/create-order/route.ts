@@ -1,134 +1,57 @@
 import { NextResponse } from 'next/server'
-import { getRazorpay } from '@/lib/razorpay'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createCheckoutSession } from '@/lib/payments/checkout-session-service'
 
-function asText(value: unknown, max = 120): string | null {
-  if (typeof value !== 'string') return null
-  const normalized = value.trim()
-  return normalized ? normalized.slice(0, max) : null
-}
-
-function computeDiscount(
-  amount: number,
-  coupon: {
-    discount_type: 'percent' | 'fixed'
-    discount_value: number
-    max_discount_amount?: number | null
-  }
-) {
-  let discountAmount = 0
-  if (coupon.discount_type === 'percent') {
-    discountAmount = Math.round((amount * coupon.discount_value) / 100)
-    if (coupon.max_discount_amount) {
-      discountAmount = Math.min(discountAmount, coupon.max_discount_amount)
-    }
-  } else {
-    discountAmount = coupon.discount_value
-  }
-
-  // Keep minimum payable as ₹1 (100 paisa) for Razorpay.
-  const safeDiscount = Math.min(discountAmount, Math.max(0, amount - 100))
-  return safeDiscount
-}
-
+// Deprecated compatibility endpoint for legacy Razorpay create-order flow.
+// New clients should use /api/checkout/create-session.
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { product_id, creator_id, variant_index, amount, coupon_code } = body
+    const result = await createCheckoutSession({
+      product_id: body.product_id,
+      creator_id: body.creator_id,
+      variant_index: body.variant_index,
+      buyer_name: body.buyer_name || 'Guest Buyer',
+      buyer_phone: body.buyer_phone || '+910000000000',
+      buyer_email: body.buyer_email || null,
+      shipping_address: body.shipping_address || null,
+      coupon_code: body.coupon_code || null,
+      visitor_id: body.visitor_id || null,
+      session_id: body.session_id || null,
+      traffic_source: body.traffic_source || null,
+      traffic_medium: body.traffic_medium || null,
+      traffic_campaign: body.traffic_campaign || null,
+      traffic_referrer: body.traffic_referrer || null,
+      customization_data: body.customization_data || null,
+      booking_date: body.booking_date || null,
+      booking_time: body.booking_time || null,
+      duration_minutes: body.duration_minutes || null,
+    })
 
-    const supabase = createAdminClient()
-    const { data: product, error: productError } = await supabase
-      .from('products')
-      .select('*')
-      .eq('id', product_id)
-      .eq('creator_id', creator_id)
-      .eq('is_active', true)
-      .single()
-
-    if (productError || !product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
-    }
-
-    if (product.is_affiliate) {
+    if (result.mode !== 'pg') {
       return NextResponse.json(
-        { error: 'Affiliate products redirect to partner platforms for purchase' },
-        { status: 400 }
+        {
+          error: 'Payment gateway is not active yet for this store. Use manual UPI checkout mode.',
+          required_mode: 'upi',
+        },
+        { status: 409 }
       )
     }
 
-    let baseAmount = product.price
-    if (product.variants && product.variants[variant_index]?.price) {
-      baseAmount = product.variants[variant_index].price
-    }
-
-    let expectedAmount = baseAmount
-    let couponResponse: Record<string, unknown> | null = null
-    const couponCode = asText(coupon_code, 40)?.toUpperCase()
-
-    if (couponCode) {
-      const { data: coupon } = await supabase
-        .from('coupons')
-        .select('*')
-        .eq('creator_id', creator_id)
-        .eq('code', couponCode)
-        .eq('is_active', true)
-        .single()
-
-      if (!coupon) {
-        return NextResponse.json({ error: 'Invalid coupon code' }, { status: 400 })
-      }
-
-      const now = new Date()
-      if (coupon.starts_at && new Date(coupon.starts_at) > now) {
-        return NextResponse.json({ error: 'Coupon is not active yet' }, { status: 400 })
-      }
-      if (coupon.ends_at && new Date(coupon.ends_at) < now) {
-        return NextResponse.json({ error: 'Coupon has expired' }, { status: 400 })
-      }
-      if (coupon.usage_limit !== null && coupon.usage_limit !== undefined && coupon.used_count >= coupon.usage_limit) {
-        return NextResponse.json({ error: 'Coupon usage limit reached' }, { status: 400 })
-      }
-      if (coupon.min_order_amount && baseAmount < coupon.min_order_amount) {
-        return NextResponse.json(
-          { error: `Minimum order value is ₹${(coupon.min_order_amount / 100).toLocaleString('en-IN')}` },
-          { status: 400 }
-        )
-      }
-      if (coupon.applicable_product_ids?.length && !coupon.applicable_product_ids.includes(product_id)) {
-        return NextResponse.json({ error: 'Coupon is not valid for this product' }, { status: 400 })
-      }
-
-      const discountAmount = computeDiscount(baseAmount, coupon)
-      expectedAmount = Math.max(100, baseAmount - discountAmount)
-      couponResponse = {
-        id: coupon.id,
-        code: coupon.code,
-        discount_amount: discountAmount,
-        original_amount: baseAmount,
-        final_amount: expectedAmount,
-      }
-    }
-
-    // Amount must match the server computed final amount.
-    if (Math.abs(expectedAmount - Number(amount)) > 100) {
-      return NextResponse.json({ error: 'Price mismatch' }, { status: 400 })
-    }
-
-    const razorpay = getRazorpay()
-    const razorpayOrder = await razorpay.orders.create({
-      amount: expectedAmount,
-      currency: 'INR',
-      receipt: `order_${Date.now()}`,
-    })
-
     return NextResponse.json({
-      razorpay_order_id: razorpayOrder.id,
-      amount: expectedAmount,
-      original_amount: baseAmount,
-      coupon: couponResponse,
+      success: true,
+      order_id: result.order_id,
+      order_number: result.order_number,
+      razorpay_order_id: result.gateway_order_id,
+      amount: result.amount,
+      key_id: result.key_id,
+      provider: result.provider,
+      coupon: result.coupon,
     })
   } catch (error) {
-    console.error('Create order error:', error)
-    return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
+    console.error('Create order compatibility route error:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to create gateway order' },
+      { status: 400 }
+    )
   }
 }

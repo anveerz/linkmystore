@@ -5,6 +5,7 @@ import type { AvailabilitySlot } from '@/types'
 interface BookingConfig {
     availability?: AvailabilitySlot[]
     duration_minutes?: number
+    duration_options?: Array<{ duration_minutes: number }>
     buffer_minutes?: number
     min_notice_hours?: number
 }
@@ -14,6 +15,7 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url)
         const productId = searchParams.get('product_id')
         const date = searchParams.get('date')
+        const durationParam = searchParams.get('duration_minutes')
 
         if (!productId || !date) {
             return NextResponse.json({ error: 'product_id and date are required' }, { status: 400 })
@@ -24,15 +26,21 @@ export async function GET(request: Request) {
         // Get product to read availability & duration
         const { data: product } = await supabase
             .from('products')
-            .select('coaching_data, calendar_data')
+            .select('digital_subtype, is_active, coaching_data, calendar_data')
             .eq('id', productId)
             .single()
 
-        if (!product) {
+        if (!product || product.is_active !== true) {
             return NextResponse.json({ error: 'Product not found' }, { status: 404 })
         }
 
-        const config = (product.coaching_data || product.calendar_data) as BookingConfig | null
+        if (product.digital_subtype !== 'coaching' && product.digital_subtype !== 'calendar') {
+            return NextResponse.json({ error: 'Product is not bookable' }, { status: 400 })
+        }
+
+        const config = (product.digital_subtype === 'coaching'
+            ? product.coaching_data
+            : product.calendar_data) as BookingConfig | null
         if (!config) {
             return NextResponse.json({ error: 'No booking configuration found' }, { status: 400 })
         }
@@ -54,8 +62,13 @@ export async function GET(request: Request) {
 
         const bookedTimes = new Set((existingBookings || []).map(b => b.booking_time))
 
-        // Generate time slots
-        const duration = config.duration_minutes || 30
+        // Generate time slots with selected duration package (if provided)
+        const durationOptions = Array.isArray(config.duration_options) ? config.duration_options : []
+        const requestedDuration = durationParam ? Number(durationParam) : null
+        const duration =
+            requestedDuration && durationOptions.some((option) => option.duration_minutes === requestedDuration)
+                ? requestedDuration
+                : (config.duration_minutes || durationOptions[0]?.duration_minutes || 30)
         const buffer = config.buffer_minutes || 0
         const slots: string[] = []
 
@@ -69,7 +82,17 @@ export async function GET(request: Request) {
                 const hh = String(Math.floor(m / 60)).padStart(2, '0')
                 const mm = String(m % 60).padStart(2, '0')
                 const timeStr = `${hh}:${mm}`
-                if (!bookedTimes.has(timeStr + ':00') && !bookedTimes.has(timeStr)) {
+                const candidateStart = m
+                const candidateEnd = m + duration
+
+                const hasOverlap = (existingBookings || []).some((booking) => {
+                    const [bookingHour, bookingMinute] = booking.booking_time.split(':').map(Number)
+                    const bookingStart = bookingHour * 60 + bookingMinute
+                    const bookingEnd = bookingStart + (booking.duration_minutes || 30)
+                    return candidateStart < bookingEnd && candidateEnd > bookingStart
+                })
+
+                if (!bookedTimes.has(timeStr + ':00') && !bookedTimes.has(timeStr) && !hasOverlap) {
                     slots.push(timeStr)
                 }
             }
@@ -86,7 +109,7 @@ export async function GET(request: Request) {
             })
             : slots
 
-        return NextResponse.json({ slots: filteredSlots })
+        return NextResponse.json({ slots: filteredSlots, duration_minutes: duration })
     } catch (error: unknown) {
         console.error('Available slots error:', error)
         return NextResponse.json({ error: 'Failed to get available slots' }, { status: 500 })

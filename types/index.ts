@@ -26,6 +26,10 @@ export interface Subscription {
   status: 'active' | 'cancelled' | 'expired' | 'past_due';
   razorpay_subscription_id?: string;
   razorpay_plan_id?: string;
+  razorpay_order_id?: string;
+  razorpay_payment_id?: string;
+  term_months?: 1 | 3 | 6 | 12;
+  amount_paid_paisa?: number;
   current_period_start?: string;
   current_period_end?: string;
   cancelled_at?: string;
@@ -50,6 +54,51 @@ export type DigitalSubtype =
   | 'webinar'          // Live webinar
   | 'template_library' // Social media template library
 
+export type PhysicalSubtype =
+  | 'standard'
+  | 'creator_deal'
+  | 'custom_photoframe'
+  | 'portrait_canvas'
+
+export interface DealData {
+  external_url: string
+  coupon_code: string
+  coupon_note?: string
+  deal_label?: string
+}
+
+export interface CustomOptionValue {
+  id: string
+  label: string
+  price_delta: number // in paisa
+}
+
+export interface CustomOptionGroup {
+  id: string
+  name: string
+  required: boolean
+  options: CustomOptionValue[]
+}
+
+export interface ProductCustomizationConfig {
+  require_image_upload: boolean
+  max_images?: number
+  notes_enabled?: boolean
+  option_groups: CustomOptionGroup[]
+}
+
+export interface OrderCustomizationData {
+  uploaded_image_url: string
+  selected_options: Array<{
+    group_id: string
+    option_id: string
+    label: string
+    price_delta: number // in paisa
+  }>
+  note?: string
+  computed_price: number // in paisa
+}
+
 export interface Product {
   id: string;
   creator_id: string;
@@ -59,10 +108,13 @@ export interface Product {
   compare_price?: number;     // In paisa
   type: 'physical' | 'digital';
   digital_subtype?: DigitalSubtype;
+  physical_subtype?: PhysicalSubtype;
   images: string[];
   variants: Variant[];
   digital_file_url?: string;
   digital_file_urls?: string[];     // Multiple files for downloads/templates
+  deal_data?: DealData | null;
+  customization_config?: ProductCustomizationConfig | null;
   category?: string;
   stock?: number | null;      // null = unlimited, 0 = out of stock
   is_active: boolean;
@@ -124,9 +176,17 @@ export interface CourseLesson {
 
 // ─── Coaching Types ────────────────────────────────────────────
 
+export interface CounsellingDurationOption {
+  id?: string
+  duration_minutes: number
+  price: number // in paisa
+  label?: string
+}
+
 export interface CoachingData {
   duration_minutes: number;
-  session_type: '1on1' | 'group';
+  duration_options?: CounsellingDurationOption[];
+  session_type?: '1on1' | 'group';
   max_participants?: number;
   meeting_platform: MeetingPlatform;
   meeting_link?: string;
@@ -241,12 +301,17 @@ export interface Order {
   buyer_phone: string;
   buyer_email?: string;
   shipping_address?: ShippingAddress;
+  customization_data?: OrderCustomizationData | null;
   amount: number;             // In paisa
-  platform_fee: number;      // In paisa
+  platform_fee: number;       // In paisa (kept for legacy rows; V3 own-product rows should be 0)
   razorpay_order_id?: string;
   razorpay_payment_id?: string;
-  payment_method: 'razorpay' | 'upi_direct';
-  payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
+  gateway_order_id?: string | null;
+  gateway_payment_id?: string | null;
+  gateway_provider?: string | null;
+  legacy_revenue_model?: boolean | null;
+  payment_method: 'razorpay' | 'upi_direct' | 'pg_razorpay' | 'upi_manual';
+  payment_status: 'pending' | 'awaiting_manual_proof' | 'processing' | 'paid' | 'failed' | 'refunded' | 'chargeback';
   upi_reference_number?: string;
   payment_screenshot_url?: string;
   payment_verified?: boolean;
@@ -276,6 +341,58 @@ export interface Payout {
   order_count: number;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   created_at: string;
+}
+
+export type PaymentMode = 'pg_primary' | 'upi_fallback'
+export type PaymentProvider = 'razorpay' | 'none'
+export type PgStatus =
+  | 'not_started'
+  | 'onboarding_started'
+  | 'pending_kyc'
+  | 'under_review'
+  | 'active'
+  | 'rejected'
+  | 'suspended'
+
+export type VerificationTier = 'unverified' | 'identity_verified' | 'business_verified'
+
+export interface PaymentAccount {
+  id: string
+  creator_id: string
+  provider: PaymentProvider
+  payment_mode: PaymentMode
+  pg_status: PgStatus
+  pg_account_label?: string | null
+  pg_key_id?: string | null
+  upi_id?: string | null
+  upi_fallback_enabled: boolean
+  upi_fallback_expires_at?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface StoreReport {
+  id: string
+  creator_id: string
+  store_slug: string
+  category: string
+  description: string
+  status: 'open' | 'investigating' | 'resolved' | 'rejected'
+  created_at: string
+}
+
+export interface GrievanceTicket {
+  id: string
+  creator_id?: string | null
+  type: 'general' | 'abuse' | 'fraud' | 'ip' | 'privacy'
+  name: string
+  email: string
+  subject: string
+  description: string
+  status: 'open' | 'in_progress' | 'resolved' | 'rejected'
+  acknowledgement_deadline?: string | null
+  resolution_deadline?: string | null
+  created_at: string
 }
 
 export interface AffiliateClick {
@@ -407,6 +524,7 @@ export interface InstagramDmLog {
   created_at: string
 }
 
+
 // ─── Helper constants for digital subtypes ─────────────────────
 
 export const DIGITAL_SUBTYPE_CONFIG: Record<DigitalSubtype, {
@@ -431,9 +549,9 @@ export const DIGITAL_SUBTYPE_CONFIG: Record<DigitalSubtype, {
     bgColor: 'bg-purple-50',
   },
   coaching: {
-    label: '1-on-1 Coaching',
+    label: '1-on-1 Counselling',
     emoji: '💬',
-    description: 'Private counselling & coaching sessions',
+    description: 'Private counselling sessions with booking',
     color: 'text-emerald-600',
     bgColor: 'bg-emerald-50',
   },
@@ -513,6 +631,7 @@ export interface CategoryTabsProps {
   activeCategory: string;
   onCategoryChange: (id: string) => void;
   accentColor: string;
+  theme?: StoreSettings['theme'];
 }
 
 export interface ProductBadgeProps {
@@ -524,6 +643,7 @@ export interface ProductCardProps {
   storeSlug: string;
   accentColor: string;
   priority?: boolean;
+  theme?: StoreSettings['theme'];
 }
 
 export interface ProductGridProps {
@@ -531,6 +651,7 @@ export interface ProductGridProps {
   storeSlug: string;
   accentColor: string;
   activeCategory: string;
+  theme?: StoreSettings['theme'];
 }
 
 export interface StorefrontHeaderProps {
@@ -548,10 +669,12 @@ export interface StorefrontHeaderProps {
     };
   };
   stats: StoreStats;
+  theme?: StoreSettings['theme'];
 }
 
 export interface TrustBadgesProps {
   stats: StoreStats;
+  theme?: StoreSettings['theme'];
 }
 
 export interface ReviewStarsProps {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
+import { getCreatorPlanSnapshot } from '@/lib/plan-gate'
 import { sendInstagramDm } from '@/lib/instagram'
 
 function asText(value: unknown, max = 300): string | null {
@@ -28,12 +29,18 @@ export async function POST(request: Request) {
 
     const { data: creator } = await supabase
       .from('creators')
-      .select('id, store_name, store_slug')
+      .select('id, store_name, store_slug, plan')
       .eq('user_id', user.id)
       .single()
 
     if (!creator) {
       return NextResponse.json({ error: 'Creator not found' }, { status: 404 })
+    }
+
+    const planSnapshot = await getCreatorPlanSnapshot(creator.id)
+
+    if (planSnapshot.effectivePlan !== 'pro') {
+      return NextResponse.json({ error: 'Automations are available on Pro plan only' }, { status: 403 })
     }
 
     const { data: settings } = await supabase

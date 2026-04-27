@@ -3,14 +3,18 @@
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { Package } from 'lucide-react'
+import type { StoreSettings } from '@/types'
+import { getStorefrontTheme } from '@/lib/storefront-theme'
 
 interface ImageGalleryProps {
   images: string[]
+  theme?: StoreSettings['theme']
 }
 
-export default function ImageGallery({ images }: ImageGalleryProps) {
+export default function ImageGallery({ images, theme }: ImageGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
+  const themeStyles = getStorefrontTheme(theme)
 
   useEffect(() => {
     const container = containerRef.current
@@ -29,8 +33,8 @@ export default function ImageGallery({ images }: ImageGalleryProps) {
 
   if (images.length === 0) {
     return (
-      <div className="w-full aspect-square bg-gray-50 flex items-center justify-center">
-        <Package className="w-16 h-16 text-gray-300" />
+      <div className={`w-full aspect-square flex items-center justify-center ${themeStyles.productImageBg}`}>
+        <Package className={`w-16 h-16 ${themeStyles.mutedText}`} />
       </div>
     )
   }
@@ -42,6 +46,8 @@ export default function ImageGallery({ images }: ImageGalleryProps) {
         alt="Product"
         width={800}
         height={800}
+        priority
+        loading="eager"
         unoptimized
         className="w-full aspect-square object-cover"
       />
@@ -62,6 +68,8 @@ export default function ImageGallery({ images }: ImageGalleryProps) {
             alt={`Product ${index + 1}`}
             width={800}
             height={800}
+            priority={index === 0}
+            loading={index === 0 ? 'eager' : 'lazy'}
             unoptimized
             className="w-full flex-shrink-0 snap-center aspect-square object-cover"
           />
@@ -74,7 +82,7 @@ export default function ImageGallery({ images }: ImageGalleryProps) {
           <div
             key={index}
             className={`w-2 h-2 rounded-full transition-colors ${
-              index === activeIndex ? 'bg-[#0F172A]' : 'bg-gray-300'
+              index === activeIndex ? themeStyles.dotActive : themeStyles.dotInactive
             }`}
           />
         ))}

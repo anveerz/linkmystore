@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -33,8 +33,14 @@ export async function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname
 
-  // Protected dashboard routes — redirect to login if not authenticated
-  if (path.startsWith('/dashboard') || path.startsWith('/products') || path.startsWith('/orders') || path.startsWith('/payouts') || path.startsWith('/settings')) {
+  // Protected dashboard routes. Redirect to login when unauthenticated.
+  if (
+    path.startsWith('/dashboard') ||
+    path.startsWith('/products') ||
+    path.startsWith('/orders') ||
+    path.startsWith('/payouts') ||
+    path.startsWith('/settings')
+  ) {
     if (!user) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
@@ -42,14 +48,12 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // If user is logged in and visits /login, redirect to dashboard
   if (path === '/login' && user) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
   }
 
-  // If user visits /onboarding without being logged in, redirect to login
   if (path === '/onboarding' && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
@@ -61,6 +65,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|\\.well-known|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml|webmanifest)$).*)',
   ],
 }

@@ -53,6 +53,20 @@ export async function POST(request: Request) {
 
         const supabase = createAdminClient()
 
+        const { data: product } = await supabase
+            .from('products')
+            .select('id, creator_id, is_active, digital_subtype')
+            .eq('id', product_id)
+            .maybeSingle()
+
+        if (!product || product.creator_id !== creator_id || product.is_active !== true) {
+            return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+        }
+
+        if (product.digital_subtype !== 'coaching' && product.digital_subtype !== 'calendar') {
+            return NextResponse.json({ error: 'Product is not bookable' }, { status: 400 })
+        }
+
         // Check for conflicting bookings
         const { data: existing } = await supabase
             .from('bookings')

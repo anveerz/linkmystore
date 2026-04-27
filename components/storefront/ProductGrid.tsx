@@ -6,13 +6,17 @@ import { isValidProduct } from '@/lib/storefront-utils'
 import { staggerContainerVariant, staggerItemVariant, getAccessibleVariant } from '@/lib/animations'
 import { ProductCard } from './ProductCard'
 import type { ProductGridProps } from '@/types'
+import { getStorefrontTheme } from '@/lib/storefront-theme'
 
 export function ProductGrid({
   products,
   storeSlug,
   accentColor,
   activeCategory,
+  theme,
 }: ProductGridProps) {
+  const themeStyles = getStorefrontTheme(theme)
+
   const filteredProducts = products.filter((product) => {
     if (!isValidProduct(product)) {
       console.error('Invalid product data:', product)
@@ -30,10 +34,10 @@ export function ProductGrid({
 
   if (filteredProducts.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl bg-white px-6 py-16 text-center shadow-sm">
-        <Package className="h-12 w-12 text-gray-300" aria-hidden="true" />
-        <p className="mt-4 text-lg font-semibold text-gray-900">No products found</p>
-        <p className="mt-2 text-sm text-gray-500">
+      <div className={`flex flex-col items-center justify-center rounded-2xl px-6 py-16 text-center ${themeStyles.emptyState}`}>
+        <Package className={`h-12 w-12 ${themeStyles.mutedText}`} aria-hidden="true" />
+        <p className={`mt-4 text-lg font-semibold ${themeStyles.cardTitle}`}>No products found</p>
+        <p className={`mt-2 text-sm ${themeStyles.mutedText}`}>
           Try viewing &quot;All Products&quot; to see the full catalog
         </p>
       </div>
@@ -54,6 +58,7 @@ export function ProductGrid({
             storeSlug={storeSlug}
             accentColor={accentColor}
             priority={index < 4}
+            theme={theme}
           />
         </motion.div>
       ))}

@@ -10,57 +10,49 @@ interface FAQItem {
 export default function FAQ({ items, dark }: { items: FAQItem[]; dark?: boolean }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null)
 
-  const toggle = (i: number) => setOpenIndex(openIndex === i ? null : i)
+  const toggle = (index: number) => setOpenIndex(openIndex === index ? null : index)
 
   return (
-    <div
-      className="rounded-2xl overflow-hidden"
-      style={dark
-        ? { border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)' }
-        : { border: '1px solid #E5E5EC', background: '#fff' }
-      }
-    >
-      {items.map((item, i) => (
-        <div
-          key={i}
-          style={dark
-            ? { borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.08)' }
-            : { borderTop: i === 0 ? 'none' : '1px solid #F0F0F5' }
-          }
-        >
-          <button
-            onClick={() => toggle(i)}
-            className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left transition-colors duration-200"
-            style={dark ? {} : {}}
-            onMouseEnter={e => { e.currentTarget.style.background = dark ? 'rgba(255,255,255,0.04)' : '#F7F5FB' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-          >
-            <span
-              className="text-base font-semibold"
-              style={{ color: dark ? '#ffffff' : '#1A1A2E' }}
-            >
-              {item.question}
-            </span>
-            <ChevronDown
-              size={18}
-              className={`shrink-0 transition-transform duration-300 ${openIndex === i ? 'rotate-180' : ''}`}
-              style={{ color: '#FB923C' }}
-            />
-          </button>
+    <div className={dark ? 'border-t border-white/15' : 'border-t border-[#dce5fb]'}>
+      {items.map((item, index) => {
+        const isOpen = openIndex === index
+        return (
           <div
-            className={`grid transition-all duration-300 ease-in-out ${openIndex === i ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+            key={index}
+            className={`${
+              index === 0 ? '' : dark ? 'border-t border-white/10' : 'border-t border-[#e9efff]'
+            }`}
           >
-            <div className="overflow-hidden">
-              <p
-                className="px-6 pb-5 text-sm leading-relaxed"
-                style={{ color: dark ? 'rgba(216,180,254,0.75)' : '#555567' }}
-              >
-                {item.answer}
-              </p>
+            <button
+              onClick={() => toggle(index)}
+              className={`flex w-full items-center justify-between gap-4 py-5 text-left transition-colors duration-200 ${
+                dark ? 'hover:bg-white/5' : 'hover:bg-transparent'
+              }`}
+            >
+              <span className={`text-base font-semibold ${dark ? 'text-white' : 'text-[#111a38]'}`}>
+                {item.question}
+              </span>
+              <ChevronDown
+                size={18}
+                className={`shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''} ${
+                  dark ? 'text-white/75' : 'text-[#4f7cff]'
+                }`}
+              />
+            </button>
+            <div
+              className={`grid transition-all duration-300 ease-in-out ${
+                isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+              }`}
+            >
+              <div className="overflow-hidden">
+                <p className={`pb-5 text-sm leading-relaxed ${dark ? 'text-white/80' : 'text-[#4f5b80]'}`}>
+                  {item.answer}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

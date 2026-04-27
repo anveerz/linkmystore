@@ -5,10 +5,18 @@ interface UpiPaymentState {
 }
 
 export function isUpiPaymentConfirmed(order: UpiPaymentState): boolean {
-  if (order.payment_method !== 'upi_direct') return false
+  const isUpiMethod = order.payment_method === 'upi_direct' || order.payment_method === 'upi_manual'
+  if (!isUpiMethod) return false
   return order.payment_verified === true || order.payment_status === 'paid'
 }
 
 export function isUpiPendingVerification(order: UpiPaymentState): boolean {
-  return order.payment_method === 'upi_direct' && !isUpiPaymentConfirmed(order)
+  const isUpiMethod = order.payment_method === 'upi_direct' || order.payment_method === 'upi_manual'
+  if (!isUpiMethod) return false
+
+  if (order.payment_status === 'failed' || order.payment_status === 'refunded' || order.payment_status === 'chargeback') {
+    return false
+  }
+
+  return !isUpiPaymentConfirmed(order)
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useParams, useSearchParams } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -22,6 +22,7 @@ import type { CourseData, CourseLesson, CourseModule } from '@/types'
 
 export default function LearnPage() {
   const params = useParams()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
   const slug = params.slug as string
@@ -61,6 +62,13 @@ export default function LearnPage() {
       const { data: productData } = await supabase
         .from('products').select('*').eq('id', productId).eq('creator_id', creatorData.id).eq('is_active', true).single()
       if (!productData) { setAuthStep('not-found'); return }
+
+      if (productData.digital_subtype !== 'course') {
+        toast.error('This product is not a course. Redirecting to product page.')
+        router.replace(`/${slug}/${productId}`)
+        return
+      }
+
       setProduct(productData)
 
       const { data: settingsData } = await supabase

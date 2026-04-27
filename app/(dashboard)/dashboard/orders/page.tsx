@@ -125,7 +125,7 @@ export default function OrdersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E8651A]"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4f7cff]"></div>
       </div>
     )
   }
@@ -189,7 +189,7 @@ export default function OrdersPage() {
               <div className="flex items-center justify-between">
                 <p className="text-xs font-mono text-gray-400">{order.order_number}</p>
                 <div className="flex items-center gap-2">
-                  {order.payment_method === 'upi_direct' && (
+                  {(order.payment_method === 'upi_direct' || order.payment_method === 'upi_manual') && (
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full ${
                         isUpiPaymentConfirmed(order)
@@ -235,7 +235,7 @@ export default function OrdersPage() {
                     <p className="text-xs text-gray-500">{order.variant.name}</p>
                   )}
                   <p className="text-xs text-gray-400">by {order.buyer_name}</p>
-                  {order.payment_method === 'upi_direct' && order.upi_reference_number && (
+                  {(order.payment_method === 'upi_direct' || order.payment_method === 'upi_manual') && order.upi_reference_number && (
                     <p className="text-[11px] text-gray-500 mt-0.5">
                       UPI Ref: <span className="font-mono">{order.upi_reference_number}</span>
                     </p>

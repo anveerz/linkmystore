@@ -42,6 +42,10 @@ export async function POST(request: Request) {
             current_period_end: new Date(sub.current_end * 1000).toISOString(),
             updated_at: new Date().toISOString(),
           }, { onConflict: 'creator_id' })
+          await admin.from('store_settings').update({
+            show_branding: false,
+            seo_enabled: true,
+          }).eq('creator_id', creatorId)
         }
         break
       }

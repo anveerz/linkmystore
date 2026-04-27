@@ -5,26 +5,28 @@ import { motion } from 'framer-motion'
 import { formatNumber } from '@/lib/storefront-utils'
 import { ReviewStars } from './ReviewStars'
 import type { TrustBadgesProps } from '@/types'
+import { getStorefrontTheme } from '@/lib/storefront-theme'
 
-export function TrustBadges({ stats }: TrustBadgesProps) {
+export function TrustBadges({ stats, theme }: TrustBadgesProps) {
   const { total_orders, average_rating, review_count, response_time } = stats
+  const themeStyles = getStorefrontTheme(theme)
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-3">
       {total_orders > 0 && (
         <motion.div
-          className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700"
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${themeStyles.chip} ${themeStyles.chipText}`}
           whileHover={{ scale: 1.05 }}
           transition={{ duration: 0.15 }}
         >
-          <ShoppingBag className="h-3.5 w-3.5 text-gray-600" aria-hidden="true" />
+          <ShoppingBag className="h-3.5 w-3.5 opacity-80" aria-hidden="true" />
           <span>{formatNumber(total_orders)} orders</span>
         </motion.div>
       )}
 
       {average_rating > 0 && review_count > 0 && (
         <motion.div
-          className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5"
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 ${themeStyles.chip}`}
           whileHover={{ scale: 1.05 }}
           transition={{ duration: 0.15 }}
         >
@@ -39,11 +41,11 @@ export function TrustBadges({ stats }: TrustBadgesProps) {
 
       {response_time && (
         <motion.div
-          className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700"
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${themeStyles.chip} ${themeStyles.chipText}`}
           whileHover={{ scale: 1.05 }}
           transition={{ duration: 0.15 }}
         >
-          <Clock className="h-3.5 w-3.5 text-gray-600" aria-hidden="true" />
+          <Clock className="h-3.5 w-3.5 opacity-80" aria-hidden="true" />
           <span>{response_time}</span>
         </motion.div>
       )}

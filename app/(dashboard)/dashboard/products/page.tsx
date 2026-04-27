@@ -83,7 +83,7 @@ export default function ProductsPage() {
       )
       toast.error('Failed to update product')
     } else {
-      toast.success(newValue ? 'Product visible on store ✅' : 'Product hidden from store')
+      toast.success(newValue ? 'Product is visible on your store' : 'Product is hidden from your store')
     }
   }
 
@@ -112,7 +112,7 @@ export default function ProductsPage() {
     const url = `${window.location.origin}/${creator.store_slug}/${product.id}`
     navigator.clipboard.writeText(url)
     setCopiedId(product.id)
-    toast.success('Product link copied! 📋')
+    toast.success('Product link copied')
     setTimeout(() => setCopiedId(null), 2000)
   }
 
@@ -128,10 +128,10 @@ export default function ProductsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center">
-            <div className="h-8 w-24 bg-[#E8DFD3] rounded-lg animate-pulse" />
-            <div className="h-6 w-12 bg-[#E8DFD3] rounded-full ml-3 animate-pulse" />
+            <div className="h-8 w-24 bg-[#e7eeff] rounded-lg animate-pulse" />
+            <div className="h-6 w-12 bg-[#e7eeff] rounded-full ml-3 animate-pulse" />
           </div>
-          <div className="h-12 w-36 bg-[#E8DFD3] rounded-xl animate-pulse" />
+          <div className="h-12 w-36 bg-[#e7eeff] rounded-xl animate-pulse" />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3].map((i) => (
@@ -148,7 +148,7 @@ export default function ProductsPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center">
           <h1 className="text-2xl font-bold text-[#1A1A2E]">Products</h1>
-          <span className="bg-gradient-to-r from-[#E8651A]/10 to-[#3D2176]/10 text-[#3D2176] text-xs font-semibold px-3 py-1 rounded-full ml-3">
+          <span className="ml-3 rounded-full bg-[linear-gradient(125deg,rgba(79,124,255,0.14)_0%,rgba(122,93,255,0.12)_100%)] px-3 py-1 text-xs font-semibold text-[#3953c6]">
             {products.length}
           </span>
         </div>
@@ -162,8 +162,8 @@ export default function ProductsPage() {
       {products.length === 0 && (
         <div className="card py-16">
           <div className="flex flex-col items-center">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#E8651A]/10 to-[#3D2176]/10 flex items-center justify-center">
-              <Package className="w-12 h-12 text-[#E8651A]" />
+            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,rgba(79,124,255,0.12)_0%,rgba(122,93,255,0.08)_100%)]">
+              <Package className="w-12 h-12 text-[#4f7cff]" />
             </div>
             <h3 className="text-xl font-bold mt-4">No products yet</h3>
             <p className="text-gray-500 text-sm mt-2 max-w-sm text-center">
@@ -205,19 +205,6 @@ export default function ProductsPage() {
                       </div>
                     )}
 
-                    {/* Product Type Badge */}
-                    <div className="absolute top-3 right-3">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full backdrop-blur-sm ${
-                        product.is_affiliate
-                          ? 'bg-slate-800/90 text-white'
-                          : product.type === 'physical'
-                            ? 'bg-blue-500/90 text-white'
-                            : 'bg-purple-500/90 text-white'
-                        }`}>
-                        {product.is_affiliate ? 'Affiliate' : product.type === 'physical' ? 'Physical' : 'Digital'}
-                      </span>
-                    </div>
-
                     {/* Stock Warning */}
                     {stockStatus?.urgent && (
                       <div className="absolute bottom-3 left-3">
@@ -234,17 +221,15 @@ export default function ProductsPage() {
                 <div className="absolute top-3 left-3">
                   <button
                     onClick={() => toggleActive(product)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur-sm transition-all ${product.is_active
-                      ? 'bg-green-500/90 text-white'
-                      : 'bg-gray-600/80 text-white'
-                      }`}
-                    title={product.is_active ? 'Click to hide from store' : 'Click to show on store'}
+                    className={`flex h-9 w-9 items-center justify-center rounded-full backdrop-blur-sm transition-all ${
+                      product.is_active
+                        ? 'bg-[linear-gradient(125deg,#4f7cff_0%,#7a5dff_100%)] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
+                        : 'bg-slate-700/80 text-white'
+                    }`}
+                    title={product.is_active ? 'Hide product from your store' : 'Show product on your store'}
+                    aria-label={product.is_active ? 'Hide product from your store' : 'Show product on your store'}
                   >
-                    {product.is_active ? (
-                      <><Eye className="w-3 h-3" /> Live</>
-                    ) : (
-                      <><EyeOff className="w-3 h-3" /> Hidden</>
-                    )}
+                    {product.is_active ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                   </button>
                 </div>
 
@@ -338,4 +323,3 @@ export default function ProductsPage() {
     </div>
   )
 }
-

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ChevronLeft, Loader2, Download, CheckCircle2, Gift } from 'lucide-react'
@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 
 export default function ClaimPage() {
   const params = useParams()
+  const router = useRouter()
   const supabase = createClient()
   const slug = params.slug as string
   const productId = params.productId as string
@@ -54,6 +55,15 @@ export default function ClaimPage() {
         .single()
 
       if (!productData) return
+
+      const isLeadMagnet =
+        productData.is_lead_magnet === true || productData.digital_subtype === 'lead_magnet'
+      if (!isLeadMagnet) {
+        toast.error('This product is not a free lead magnet.')
+        router.replace(`/${slug}/${productId}`)
+        return
+      }
+
       setProduct(productData)
 
       const { data: settingsData } = await supabase
@@ -119,6 +129,7 @@ export default function ClaimPage() {
   }
 
   const accentColor = settings?.accent_color || '#E8651A'
+  const shouldShowBranding = creator?.plan !== 'pro' || settings?.show_branding !== false
 
   // ── Success Step ──────────────────────────────────────────────────────────
   if (step === 'success') {
@@ -172,12 +183,14 @@ export default function ClaimPage() {
           </Link>
         </div>
 
-        <p className="text-center text-xs text-gray-300 mt-8">
-          Powered by{' '}
-          <a href="https://linkmystore.in" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400">
-            LinkMyStore
-          </a>
-        </p>
+        {shouldShowBranding && (
+          <p className="text-center text-xs text-gray-300 mt-8">
+            Powered by{' '}
+            <a href="https://linkmystore.in" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400">
+              LinkMyStore
+            </a>
+          </p>
+        )}
       </div>
     )
   }

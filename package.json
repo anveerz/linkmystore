@@ -9,7 +9,11 @@
     "lint": "eslint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "v3:preflight": "node scripts/v3/preflight.cjs",
+    "v3:webhooks:sync": "node scripts/v3/sync-webhooks.cjs",
+    "v3:e2e:staging": "node scripts/v3/staging-e2e.cjs",
+    "v3:automate": "node scripts/v3/run-all.cjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
@@ -20,7 +24,8 @@
     "razorpay": "^2.9.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-hot-toast": "^2.6.0"
+    "react-hot-toast": "^2.6.0",
+    "resend": "^6.0.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

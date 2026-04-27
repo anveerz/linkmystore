@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getCreatorPlanSnapshot } from '@/lib/plan-gate'
 import { sendWhatsAppMessage, type WhatsAppSendResult } from '@/lib/whatsapp'
 
 interface OrderNotificationParams {
@@ -19,7 +20,12 @@ export async function sendOrderNotificationIfEligible(
     .eq('id', params.creatorId)
     .single()
 
-  if (!creator || creator.plan !== 'pro') {
+  if (!creator) {
+    return null
+  }
+
+  const planSnapshot = await getCreatorPlanSnapshot(params.creatorId)
+  if (planSnapshot.effectivePlan !== 'pro') {
     return null
   }
 

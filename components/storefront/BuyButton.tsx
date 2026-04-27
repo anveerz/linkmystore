@@ -51,9 +51,11 @@ export default function BuyButton({
         
         <div className="flex items-center justify-center gap-4 mt-3">
           <span className="text-[11px] text-gray-400">🔒 Secure Payment</span>
-          <span className="text-[11px] text-gray-400">⚡ Powered by Razorpay</span>
+          <span className="text-[11px] text-gray-400">⚡ PG auto-confirmation with manual UPI mode</span>
         </div>
       </div>
     </div>
   )
 }
+
+

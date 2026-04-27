@@ -12,6 +12,10 @@ jest.mock('@/lib/razorpay', () => ({
   getRazorpay: jest.fn(),
 }))
 
+jest.mock('@/lib/plan-gate', () => ({
+  getCreatorPlanSnapshot: jest.fn(),
+}))
+
 const { createClient } = jest.requireMock('@/lib/supabase/server') as {
   createClient: jest.Mock
 }
@@ -21,6 +25,9 @@ const { createAdminClient } = jest.requireMock('@/lib/supabase/admin') as {
 const { getRazorpay } = jest.requireMock('@/lib/razorpay') as {
   getRazorpay: jest.Mock
 }
+const { getCreatorPlanSnapshot } = jest.requireMock('@/lib/plan-gate') as {
+  getCreatorPlanSnapshot: jest.Mock
+}
 
 describe('POST /api/subscriptions/create', () => {
   const originalEnv = { ...process.env }
@@ -28,6 +35,12 @@ describe('POST /api/subscriptions/create', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     process.env = { ...originalEnv, NEXT_PUBLIC_RAZORPAY_KEY_ID: 'rzp_public_key' }
+    getCreatorPlanSnapshot.mockResolvedValue({
+      effectivePlan: 'free',
+      hasLegacyRecurringSubscription: false,
+      subscription: null,
+      currentPeriodEnd: null,
+    })
   })
 
   afterAll(() => {
@@ -41,42 +54,37 @@ describe('POST /api/subscriptions/create', () => {
     createAdminClient.mockReturnValue(new SupabaseQueryMock())
 
     const { POST } = await import('@/app/api/subscriptions/create/route')
-    const response = await POST()
+    const response = await POST(new Request('http://localhost/api/subscriptions/create', { method: 'POST' }))
     const body = await response.json()
 
     expect(response.status).toBe(401)
     expect(body.error).toContain('Unauthorized')
   })
 
-  it('blocks creators already on pro plan', async () => {
+  it('rejects invalid terms', async () => {
     createClient.mockResolvedValue({
-      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'u1', email: 'x@example.com' } } }) },
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'u1' } } }) },
     })
-    createAdminClient.mockReturnValue(
-      new SupabaseQueryMock({
-        creators: {
-          selectSingle: [{ data: { id: 'c1', plan: 'pro', store_name: 'Store', email: 'x@example.com' } }],
-        },
-      })
-    )
+    createAdminClient.mockReturnValue(new SupabaseQueryMock())
 
     const { POST } = await import('@/app/api/subscriptions/create/route')
-    const response = await POST()
+    const response = await POST(
+      new Request('http://localhost/api/subscriptions/create', {
+        method: 'POST',
+        body: JSON.stringify({ months: 2 }),
+      })
+    )
     const body = await response.json()
 
     expect(response.status).toBe(400)
-    expect(body.error).toContain('Already on Pro plan')
+    expect(body.error).toContain('valid Pro term')
   })
 
-  it('creates one-time Razorpay order fallback when plan id is absent', async () => {
-    delete process.env.RAZORPAY_PRO_PLAN_ID
-
+  it('creates a 3 month prepaid order with the discounted amount', async () => {
+    const createOrder = jest.fn().mockResolvedValue({ id: 'order_123' })
     const db = new SupabaseQueryMock({
       creators: {
-        selectSingle: [{ data: { id: 'c2', plan: 'free', store_name: 'Store 2', email: 's2@example.com' } }],
-      },
-      subscriptions: {
-        selectSingle: [{ data: null }],
+        selectSingle: [{ data: { id: 'c2', store_name: 'Store 2', email: 's2@example.com', phone: '9876543210' } }],
       },
     })
 
@@ -86,35 +94,53 @@ describe('POST /api/subscriptions/create', () => {
     createAdminClient.mockReturnValue(db)
     getRazorpay.mockReturnValue({
       orders: {
-        create: jest.fn().mockResolvedValue({ id: 'order_123' }),
+        create: createOrder,
       },
-      subscriptions: { create: jest.fn() },
     })
 
     const { POST } = await import('@/app/api/subscriptions/create/route')
-    const response = await POST()
+    const response = await POST(
+      new Request('http://localhost/api/subscriptions/create', {
+        method: 'POST',
+        body: JSON.stringify({ months: 3 }),
+      })
+    )
     const body = await response.json()
 
     expect(response.status).toBe(200)
     expect(body).toEqual(
       expect.objectContaining({
-        type: 'order',
         razorpay_order_id: 'order_123',
         key: 'rzp_public_key',
+        amount: 80700,
+        months: 3,
+        prefill: expect.objectContaining({
+          contact: '+919876543210',
+        }),
       })
     )
+    expect(createOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 80700,
+        receipt: expect.any(String),
+      })
+    )
+    expect(createOrder.mock.calls[0][0].receipt.length).toBeLessThanOrEqual(40)
   })
 
-  it('creates subscription and upserts record when pro plan id exists', async () => {
-    process.env.RAZORPAY_PRO_PLAN_ID = 'plan_live_123'
-
+  it('blocks prepaid checkout when a legacy recurring subscription is still active', async () => {
     const db = new SupabaseQueryMock({
       creators: {
-        selectSingle: [{ data: { id: 'c3', plan: 'free', store_name: 'Store 3', email: 's3@example.com' } }],
+        selectSingle: [{ data: { id: 'c3', store_name: 'Store 3', email: 's3@example.com', phone: '9876543210' } }],
       },
       subscriptions: {
-        selectSingle: [{ data: null }],
-        upsert: [{ data: null }],
+        selectSingle: [{
+          data: {
+            status: 'active',
+            razorpay_subscription_id: 'sub_123',
+            current_period_end: '2026-04-01T00:00:00.000Z',
+          },
+        }],
       },
     })
 
@@ -122,65 +148,23 @@ describe('POST /api/subscriptions/create', () => {
       auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'u3', email: 'u3@example.com' } } }) },
     })
     createAdminClient.mockReturnValue(db)
-    getRazorpay.mockReturnValue({
-      orders: { create: jest.fn() },
-      subscriptions: {
-        create: jest.fn().mockResolvedValue({ id: 'sub_123' }),
-      },
+    getCreatorPlanSnapshot.mockResolvedValue({
+      effectivePlan: 'pro',
+      hasLegacyRecurringSubscription: true,
+      subscription: { razorpay_subscription_id: 'sub_123', status: 'active' },
+      currentPeriodEnd: '2026-04-01T00:00:00.000Z',
     })
 
     const { POST } = await import('@/app/api/subscriptions/create/route')
-    const response = await POST()
-    const body = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(body).toEqual(
-      expect.objectContaining({
-        type: 'subscription',
-        razorpay_subscription_id: 'sub_123',
-        key: 'rzp_public_key',
+    const response = await POST(
+      new Request('http://localhost/api/subscriptions/create', {
+        method: 'POST',
+        body: JSON.stringify({ months: 1 }),
       })
     )
-
-    const upsertCall = db.calls.find((call) => call.table === 'subscriptions' && call.operation === 'upsert')
-    expect(upsertCall).toBeDefined()
-  })
-
-  it('falls back to one-time order when subscription plan creation fails', async () => {
-    process.env.RAZORPAY_PRO_PLAN_ID = 'plan_invalid_or_deleted'
-
-    const db = new SupabaseQueryMock({
-      creators: {
-        selectSingle: [{ data: { id: 'c4', plan: 'free', store_name: 'Store 4', email: 's4@example.com' } }],
-      },
-      subscriptions: {
-        selectSingle: [{ data: null }],
-      },
-    })
-
-    createClient.mockResolvedValue({
-      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'u4', email: 'u4@example.com' } } }) },
-    })
-    createAdminClient.mockReturnValue(db)
-    getRazorpay.mockReturnValue({
-      orders: {
-        create: jest.fn().mockResolvedValue({ id: 'order_fallback_123' }),
-      },
-      subscriptions: {
-        create: jest.fn().mockRejectedValue(new Error('Plan not found')),
-      },
-    })
-
-    const { POST } = await import('@/app/api/subscriptions/create/route')
-    const response = await POST()
     const body = await response.json()
 
-    expect(response.status).toBe(200)
-    expect(body).toEqual(
-      expect.objectContaining({
-        type: 'order',
-        razorpay_order_id: 'order_fallback_123',
-      })
-    )
+    expect(response.status).toBe(400)
+    expect(body.error).toContain('Cancel your existing recurring')
   })
 })

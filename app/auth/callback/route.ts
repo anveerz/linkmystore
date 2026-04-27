@@ -2,8 +2,47 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
+function normalizeOrigin(rawUrl: string | null | undefined): string | null {
+  const value = (rawUrl || '').trim()
+  if (!value) return null
+  try {
+    return new URL(value).origin
+  } catch {
+    return null
+  }
+}
+
+function isLocalOrigin(origin: string): boolean {
+  try {
+    const host = new URL(origin).hostname.toLowerCase()
+    return host === 'localhost' || host === '127.0.0.1'
+  } catch {
+    return false
+  }
+}
+
+function resolveCallbackBaseUrl(requestUrl: URL) {
+  const requestOrigin = requestUrl.origin
+  const configuredOrigin = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL)
+  const isDev = process.env.NODE_ENV !== 'production'
+
+  if (isDev) {
+    return requestOrigin
+  }
+
+  // If callback request somehow lands on localhost in a hosted environment,
+  // promote users back to canonical hosted origin when configured.
+  if (isLocalOrigin(requestOrigin) && configuredOrigin && !isLocalOrigin(configuredOrigin)) {
+    return configuredOrigin
+  }
+
+  return requestOrigin
+}
+
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
+  const requestUrl = new URL(request.url)
+  const { searchParams } = requestUrl
+  const origin = resolveCallbackBaseUrl(requestUrl)
   const code = searchParams.get('code')
 
   if (code) {

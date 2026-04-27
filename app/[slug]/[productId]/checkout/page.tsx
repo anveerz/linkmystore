@@ -17,6 +17,8 @@ import {
   ShieldCheck,
   ExternalLink,
   Upload,
+  Copy,
+  Download,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { Creator, Product, StoreSettings, Variant } from '@/types'
@@ -34,6 +36,24 @@ interface AppliedCoupon {
   discount_amount: number
   original_amount: number
   final_amount: number
+}
+
+interface CustomizationOptionConfig {
+  id: string
+  label: string
+  price_delta: number
+}
+
+interface CustomizationGroupConfig {
+  id: string
+  name: string
+  required: boolean
+  options: CustomizationOptionConfig[]
+}
+
+interface ProductCustomizationConfig {
+  require_image_upload?: boolean
+  option_groups?: CustomizationGroupConfig[]
 }
 
 function inferTrafficSource(referrerHost: string): string {
@@ -60,6 +80,7 @@ export default function CheckoutPage() {
   const [product, setProduct] = useState<Product | null>(null)
   const [creator, setCreator] = useState<Creator | null>(null)
   const [settings, setSettings] = useState<StoreSettings | null>(null)
+  const [preferredMode, setPreferredMode] = useState<'pg' | 'upi' | null>(null)
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(false)
 
@@ -85,14 +106,22 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<'details' | 'confirm' | 'success'>('details')
   const [orderNumber, setOrderNumber] = useState<string | null>(null)
   const [orderId, setOrderId] = useState<string | null>(null)
+  const [sessionMode, setSessionMode] = useState<'pg' | 'upi' | null>(null)
   const [upiLink, setUpiLink] = useState<string | null>(null)
+  const [upiQrLink, setUpiQrLink] = useState<string | null>(null)
   const [sellerUpiId, setSellerUpiId] = useState<string | null>(null)
   const [sellerName, setSellerName] = useState<string | null>(null)
+  const [upiTransactionRef, setUpiTransactionRef] = useState<string | null>(null)
+  const [upiTransactionNote, setUpiTransactionNote] = useState<string | null>(null)
   const [upiReferenceNumber, setUpiReferenceNumber] = useState('')
   const [paymentScreenshotUrl, setPaymentScreenshotUrl] = useState<string | null>(null)
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false)
   const [confirmingPayment, setConfirmingPayment] = useState(false)
   const [pendingVerificationFlow, setPendingVerificationFlow] = useState(false)
+  const [customizationImageUrl, setCustomizationImageUrl] = useState<string | null>(null)
+  const [customizationUploading, setCustomizationUploading] = useState(false)
+  const [customizationNote, setCustomizationNote] = useState('')
+  const [customizationSelections, setCustomizationSelections] = useState<Record<string, string>>({})
   // Coupon state
   const [couponCode, setCouponCode] = useState('')
   const [couponLoading, setCouponLoading] = useState(false)
@@ -173,6 +202,22 @@ export default function CheckoutPage() {
 
       setSettings(settingsData)
 
+      try {
+        const modeResponse = await fetch('/api/checkout/mode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ creator_id: creatorData.id }),
+        })
+        if (modeResponse.ok) {
+          const modePayload = await modeResponse.json()
+          setPreferredMode(modePayload.mode === 'pg' ? 'pg' : 'upi')
+        } else {
+          setPreferredMode(null)
+        }
+      } catch {
+        setPreferredMode(null)
+      }
+
       // Load saved buyer info from localStorage
       const saved = localStorage.getItem('lms_buyer_info')
       if (saved) {
@@ -208,6 +253,13 @@ export default function CheckoutPage() {
   }, [fetchData])
 
   useEffect(() => {
+    if (!product || product.type !== 'physical') return
+    setCustomizationSelections({})
+    setCustomizationImageUrl(null)
+    setCustomizationNote('')
+  }, [product])
+
+  useEffect(() => {
     setAppliedCoupon(null)
     setCouponError('')
   }, [selectedVariantIndex, productId])
@@ -227,6 +279,34 @@ export default function CheckoutPage() {
   const getSelectedVariant = (): Variant | null => {
     if (!product?.variants || product.variants.length === 0) return null
     return product.variants[selectedVariantIndex] || null
+  }
+
+  const getCustomizationConfig = (): ProductCustomizationConfig | null => {
+    if (!product || product.type !== 'physical') return null
+    if (!product.customization_config || typeof product.customization_config !== 'object') return null
+    return product.customization_config as ProductCustomizationConfig
+  }
+
+  const getCustomizationSelections = () => {
+    return Object.entries(customizationSelections)
+      .filter(([, optionId]) => optionId)
+      .map(([groupId, optionId]) => ({
+        group_id: groupId,
+        option_id: optionId,
+      }))
+  }
+
+  const isCustomizationComplete = () => {
+    const config = getCustomizationConfig()
+    if (!config) return true
+    if (config.require_image_upload && !customizationImageUrl) return false
+    const groups = config.option_groups || []
+    for (const group of groups) {
+      if (group.required && !customizationSelections[group.id]) {
+        return false
+      }
+    }
+    return true
   }
 
   const saveBuyerInfo = () => {
@@ -357,6 +437,62 @@ export default function CheckoutPage() {
     }
   }
 
+  const handleUploadCustomizationImage = async (file: File) => {
+    setCustomizationUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch('/api/upload/customization-image', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to upload image')
+      }
+
+      setCustomizationImageUrl(data.url)
+      toast.success('Customization image uploaded')
+    } catch (error) {
+      console.error('Customization image upload failed:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to upload image')
+    } finally {
+      setCustomizationUploading(false)
+    }
+  }
+
+  const copyToClipboard = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value)
+      toast.success(`${label} copied`)
+    } catch {
+      toast.error(`Could not copy ${label.toLowerCase()}`)
+    }
+  }
+
+  const ensureRazorpayScript = useCallback(async () => {
+    if (typeof window === 'undefined') return
+    if (window.Razorpay) return
+
+    await new Promise<void>((resolve, reject) => {
+      const existing = document.querySelector<HTMLScriptElement>('script[src*="checkout.razorpay.com/v1/checkout.js"]')
+      if (existing) {
+        existing.addEventListener('load', () => resolve(), { once: true })
+        existing.addEventListener('error', () => reject(new Error('Failed to load gateway script')), { once: true })
+        return
+      }
+
+      const script = document.createElement('script')
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+      script.async = true
+      script.onload = () => resolve()
+      script.onerror = () => reject(new Error('Failed to load gateway script'))
+      document.body.appendChild(script)
+    })
+  }, [])
+
   const handleConfirmUpi = async () => {
     if (!orderId) return
 
@@ -368,12 +504,12 @@ export default function CheckoutPage() {
 
     setConfirmingPayment(true)
     try {
-      const response = await fetch('/api/checkout/confirm-upi', {
+      const response = await fetch('/api/payments/upi/submit-proof', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           order_id: orderId,
-          upi_reference_number: normalizedRef || null,
+          utr: normalizedRef || null,
           payment_screenshot_url: paymentScreenshotUrl,
         }),
       })
@@ -412,6 +548,10 @@ export default function CheckoutPage() {
         return
       }
     } else {
+      if (!isCustomizationComplete()) {
+        toast.error('Please complete required customization details')
+        return
+      }
       if (!pincode || pincode.length !== 6) {
         toast.error('Please enter a valid pincode')
         return
@@ -435,7 +575,7 @@ export default function CheckoutPage() {
     setPaying(true)
 
     try {
-      const response = await fetch('/api/checkout/create-upi-order', {
+      const response = await fetch('/api/checkout/create-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -454,6 +594,13 @@ export default function CheckoutPage() {
                 pincode: pincode.trim(),
               }
             : null,
+          customization_data: getCustomizationConfig()
+            ? {
+                uploaded_image_url: customizationImageUrl,
+                selected_options: getCustomizationSelections(),
+                note: customizationNote.trim() || null,
+              }
+            : null,
           coupon_code: appliedCoupon?.code || null,
           traffic_source: attribution.source,
           traffic_medium: attribution.medium,
@@ -469,15 +616,70 @@ export default function CheckoutPage() {
 
       setOrderId(data.order_id)
       setOrderNumber(data.order_number)
+      setSessionMode(data.mode === 'pg' ? 'pg' : 'upi')
+
+      if (data.mode === 'pg') {
+        await ensureRazorpayScript()
+
+        if (typeof window === 'undefined' || !window.Razorpay) {
+          throw new Error('Gateway script unavailable. Please retry.')
+        }
+
+        const options: RazorpayOptions & Record<string, unknown> = {
+          key: data.key_id,
+          amount: data.amount,
+          currency: 'INR',
+          name: creator.store_name,
+          description: product.title,
+          order_id: data.gateway_order_id,
+          prefill: {
+            name: buyerName.trim(),
+            contact: '+91' + buyerPhone.replace(/\D/g, ''),
+            email: buyerEmail.trim() || undefined,
+          },
+          config: {
+            display: {
+              blocks: {
+                upi: { name: 'Pay via UPI', instruments: [{ method: 'upi' }] },
+                other: { name: 'Other Methods', instruments: [{ method: 'card' }, { method: 'netbanking' }] },
+              },
+              sequence: ['block.upi', 'block.other'],
+              preferences: { show_default_blocks: false },
+            },
+          },
+          theme: { color: accentColor },
+          handler: () => {
+            setPendingVerificationFlow(false)
+            setStep('success')
+            toast.success('Payment successful. Confirmation is automatic.')
+            setPaying(false)
+          },
+          modal: {
+            ondismiss: () => setPaying(false),
+            confirm_close: true,
+          },
+        }
+
+        const rzp = new window.Razorpay(options)
+        rzp.on('payment.failed', () => {
+          toast.error('Payment failed. Please try again.')
+          setPaying(false)
+        })
+        rzp.open()
+        return
+      }
+
       setUpiLink(data.upi_link)
+      setUpiQrLink(data.qr_link || data.upi_link)
       setSellerUpiId(data.seller_upi_id || null)
       setSellerName(data.seller_name || creator.store_name)
+      setUpiTransactionRef(data.transaction_ref || data.order_number || null)
+      setUpiTransactionNote(data.transaction_note || null)
+      setUpiReferenceNumber('')
+      setPaymentScreenshotUrl(null)
+      setPendingVerificationFlow(false)
       setStep('confirm')
-
-      if (data.upi_link && typeof window !== 'undefined') {
-        // Open UPI intent immediately after order creation.
-        window.location.href = data.upi_link
-      }
+      toast('Pay using any UPI app, then submit UTR for manual confirmation.')
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -509,7 +711,17 @@ export default function CheckoutPage() {
   const price = getPrice()
   const payableAmount = appliedCoupon?.final_amount ?? price
   const couponDiscount = appliedCoupon?.discount_amount || 0
+  const upiQrUrl = (upiQrLink || upiLink)
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(upiQrLink || upiLink || '')}`
+    : null
+  const checkoutModeLabel =
+    preferredMode === 'pg'
+      ? `Continue to Secure Gateway ${formatPrice(payableAmount)}`
+      : preferredMode === 'upi'
+        ? `Continue to Manual UPI ${formatPrice(payableAmount)}`
+        : `Pay Securely ${formatPrice(payableAmount)}`
   const selectedVariant = getSelectedVariant()
+  const customizationConfig = getCustomizationConfig()
   const checkoutTracker = (
     <EventTracker
       creatorId={creator.id}
@@ -538,19 +750,102 @@ export default function CheckoutPage() {
         </div>
 
         <div className="card mt-6">
-          <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Seller UPI ID</p>
-          <p className="text-sm font-medium text-gray-800 break-all">{sellerUpiId || 'Not available'}</p>
-          {upiLink && (
-            <button
-              onClick={() => {
-                window.location.href = upiLink
-              }}
-              className="btn-primary w-full mt-4 flex items-center justify-center gap-2"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Open UPI App Again
-            </button>
+          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            Scan the QR code in any UPI app or pay to the UPI ID below, then submit UTR/screenshot for manual confirmation.
+          </p>
+
+          {upiQrUrl && (
+            <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+              <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-3">Scan QR to Pay</p>
+              <div className="mx-auto w-52 h-52 sm:w-60 sm:h-60 rounded-xl border border-gray-100 p-2 bg-white">
+                <a href={upiQrUrl} target="_blank" rel="noopener noreferrer" className="block h-full w-full">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={upiQrUrl}
+                    alt="UPI payment QR code"
+                    className="w-full h-full object-contain rounded-lg"
+                    loading="lazy"
+                  />
+                </a>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                <a
+                  href={upiQrUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Open full size
+                </a>
+                <a
+                  href={upiQrUrl}
+                  download={`linkmystore-upi-qr-${orderNumber || 'payment'}.png`}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Save QR image
+                </a>
+              </div>
+              <p className="mt-2 text-center text-[11px] text-gray-500">
+                Open the QR full size or save it before switching to your UPI app.
+              </p>
+            </div>
           )}
+
+          <div className="mt-4 space-y-3">
+            <div className="rounded-xl border border-gray-200 px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-gray-500">Seller UPI ID</p>
+              <div className="flex items-start justify-between gap-2 mt-1">
+                <p className="text-sm font-medium text-gray-800 break-all">{sellerUpiId || 'Not available'}</p>
+                {sellerUpiId && (
+                  <button
+                    type="button"
+                    onClick={() => { void copyToClipboard(sellerUpiId, 'UPI ID') }}
+                    className="text-xs text-[#E8651A] inline-flex items-center gap-1"
+                  >
+                    <Copy className="w-3 h-3" />
+                    Copy
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-gray-500">Amount</p>
+              <div className="flex items-center justify-between gap-2 mt-1">
+                <p className="text-sm font-medium text-gray-800">{formatPrice(payableAmount)}</p>
+                <button
+                  type="button"
+                  onClick={() => { void copyToClipboard((payableAmount / 100).toFixed(2), 'Amount') }}
+                  className="text-xs text-[#E8651A] inline-flex items-center gap-1"
+                >
+                  <Copy className="w-3 h-3" />
+                  Copy
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-gray-500">Order Reference</p>
+              <div className="flex items-center justify-between gap-2 mt-1">
+                <p className="text-sm font-mono text-gray-700">{upiTransactionRef || orderNumber || '-'}</p>
+                {(upiTransactionRef || orderNumber) && (
+                  <button
+                    type="button"
+                    onClick={() => { void copyToClipboard(upiTransactionRef || orderNumber || '', 'Order reference') }}
+                    className="text-xs text-[#E8651A] inline-flex items-center gap-1"
+                  >
+                    <Copy className="w-3 h-3" />
+                    Copy
+                  </button>
+                )}
+              </div>
+              {upiTransactionNote && (
+                <p className="text-xs text-gray-500 mt-1">Note: {upiTransactionNote}</p>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="card mt-4">
@@ -637,9 +932,11 @@ export default function CheckoutPage() {
           </div>
           <h1 className="text-2xl font-bold mt-6">Order Placed</h1>
           <p className="text-sm text-gray-500 mt-2">
-            {pendingVerificationFlow
-              ? 'Your payment details were submitted. The seller will verify and process your order shortly.'
-              : 'Your order was received successfully.'}
+            {sessionMode === 'pg'
+              ? 'Payment was completed using gateway checkout. Final confirmation is synced automatically.'
+              : pendingVerificationFlow
+                ? 'Your payment details were submitted. The seller will verify UTR/screenshot and process your order shortly.'
+                : 'Your order was received successfully.'}
           </p>
           {orderNumber && (
             <p className="text-sm font-mono text-gray-400 mt-2">Order #{orderNumber}</p>
@@ -647,13 +944,21 @@ export default function CheckoutPage() {
         </div>
 
         <div className="card mt-8 max-w-sm mx-auto">
-          <p className="text-sm text-gray-600">
-            You can share your order number with the seller for faster confirmation.
-          </p>
-          {upiReferenceNumber && (
-            <p className="text-xs text-gray-500 mt-2">
-              UPI Ref: <span className="font-mono">{upiReferenceNumber.replace(/\s/g, '')}</span>
+          {sessionMode === 'pg' ? (
+            <p className="text-sm text-gray-600">
+              You can use your order number for support or refund requests.
             </p>
+          ) : (
+            <>
+              <p className="text-sm text-gray-600">
+                Share your order number with the seller for faster manual verification.
+              </p>
+              {upiReferenceNumber && (
+                <p className="text-xs text-gray-500 mt-2">
+                  UPI Ref: <span className="font-mono">{upiReferenceNumber.replace(/\s/g, '')}</span>
+                </p>
+              )}
+            </>
           )}
         </div>
 
@@ -760,7 +1065,11 @@ export default function CheckoutPage() {
           </div>
           <h2 className="text-lg font-bold mt-4">Instant Digital Delivery</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Pay via UPI and submit payment confirmation
+            {preferredMode === 'pg'
+              ? 'You will be redirected to secure Razorpay checkout with automatic confirmation.'
+              : preferredMode === 'upi'
+                ? 'This seller uses Manual UPI mode. Pay via UPI and submit UTR for seller confirmation.'
+                : 'Checkout mode is resolved automatically based on seller payment setup.'}
           </p>
 
           <div className="mt-6 space-y-3">
@@ -818,16 +1127,16 @@ export default function CheckoutPage() {
               </>
             ) : (
               <>
-                Pay via UPI {formatPrice(payableAmount)}
+                {checkoutModeLabel}
               </>
             )}
           </button>
 
           <div className="flex items-center justify-center gap-4 mt-4 text-xs text-gray-400">
             <span className="flex items-center gap-1">
-              <Lock className="w-3 h-3" /> Direct payment
+              <Lock className="w-3 h-3" /> PG auto confirmation
             </span>
-            <span>UPI intent link</span>
+            <span>{preferredMode === 'pg' ? 'Gateway checkout active' : 'Manual UPI with UTR confirmation'}</span>
           </div>
         </div>
       )}
@@ -863,6 +1172,98 @@ export default function CheckoutPage() {
                 >
                   Edit
                 </button>
+              </div>
+            </div>
+          )}
+
+          {customizationConfig && (
+            <div className="mx-4 mt-4 card border border-[#E8651A]/20 bg-[#F0ECF7]">
+              <p className="text-sm font-semibold text-[#1A1A2E]">Customize your order</p>
+              <p className="mt-1 text-xs text-gray-600">Required fields must be completed before payment.</p>
+
+              {customizationConfig.require_image_upload && (
+                <div className="mt-3">
+                  <label className="mb-2 block text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Upload Reference Image *
+                  </label>
+                  <label className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700">
+                    {customizationUploading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" /> Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4" /> Upload Image
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0]
+                        if (file) {
+                          void handleUploadCustomizationImage(file)
+                        }
+                      }}
+                    />
+                  </label>
+                  {customizationImageUrl && (
+                    <a
+                      href={customizationImageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex text-xs font-medium text-[#E8651A] hover:underline"
+                    >
+                      View uploaded image
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {(customizationConfig.option_groups || []).map((group) => (
+                <div key={group.id} className="mt-4">
+                  <label className="mb-2 block text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    {group.name} {group.required ? '*' : ''}
+                  </label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {group.options.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() =>
+                          setCustomizationSelections((prev) => ({
+                            ...prev,
+                            [group.id]: option.id,
+                          }))
+                        }
+                        className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                          customizationSelections[group.id] === option.id
+                            ? 'border-[#E8651A] bg-[#F0ECF7]'
+                            : 'border-gray-200 bg-white'
+                        }`}
+                      >
+                        <p className="font-medium text-gray-800">{option.label}</p>
+                        {option.price_delta > 0 && (
+                          <p className="text-xs text-gray-500">+₹{(option.price_delta / 100).toLocaleString('en-IN')}</p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <div className="mt-4">
+                <label className="mb-2 block text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Notes (optional)
+                </label>
+                <textarea
+                  value={customizationNote}
+                  onChange={(event) => setCustomizationNote(event.target.value)}
+                  rows={3}
+                  className="input-field resize-none"
+                  placeholder="Add any custom instructions"
+                />
               </div>
             </div>
           )}
@@ -1010,7 +1411,11 @@ export default function CheckoutPage() {
           <div className="sticky bottom-0 bg-white/90 backdrop-blur-xl border-t border-gray-100 px-4 py-4 z-20">
             <button
               onClick={handlePayment}
-              disabled={paying || (savedAddress && showSavedCard ? false : !buyerName || !buyerPhone || !pincode || !addressLine1 || !city || !state)}
+              disabled={
+                paying ||
+                !isCustomizationComplete() ||
+                (savedAddress && showSavedCard ? false : !buyerName || !buyerPhone || !pincode || !addressLine1 || !city || !state)
+              }
               className="w-full py-4 rounded-2xl font-bold text-lg text-white transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               style={{
                 background: `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}CC 100%)`,
@@ -1024,12 +1429,12 @@ export default function CheckoutPage() {
             ) : (
               <>
                 <ShieldCheck className="w-5 h-5" />
-                Pay via UPI {formatPrice(payableAmount)}
+                {checkoutModeLabel}
               </>
             )}
           </button>
             <p className="text-center text-[11px] text-gray-400 mt-2">
-              Direct UPI payment to seller
+              Gateway auto-confirmation for connected sellers. Manual UPI mode needs UTR confirmation.
             </p>
           </div>
         </>
@@ -1037,7 +1442,3 @@ export default function CheckoutPage() {
     </div>
   )
 }
-
-
-
-

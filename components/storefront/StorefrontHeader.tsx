@@ -6,24 +6,27 @@ import { motion } from 'framer-motion'
 import { fadeInVariant, getAccessibleVariant } from '@/lib/animations'
 import { TrustBadges } from './TrustBadges'
 import type { StorefrontHeaderProps } from '@/types'
+import { getStorefrontTheme } from '@/lib/storefront-theme'
 
-export function StorefrontHeader({ creator, settings, stats }: StorefrontHeaderProps) {
+export function StorefrontHeader({ creator, settings, stats, theme }: StorefrontHeaderProps) {
   const { store_name, bio, profile_image_url, instagram_handle } = creator
   const { accent_color, social_links } = settings
+  const themeStyles = getStorefrontTheme(theme)
+  const isDarkTheme = theme === 'bold' || theme === 'dark'
 
   return (
     <motion.header
       initial="hidden"
       animate="visible"
       variants={getAccessibleVariant(fadeInVariant)}
-      className="bg-white px-4 pb-6 pt-8"
+      className={`${themeStyles.header} px-4 pb-6 pt-8`}
     >
       <div className="mx-auto max-w-lg">
         <div className="flex flex-col items-center text-center">
           {/* Profile Image */}
           {profile_image_url ? (
             <div
-              className="relative h-24 w-24 overflow-hidden rounded-full shadow-lg ring-4 ring-white"
+              className={`relative h-24 w-24 overflow-hidden rounded-full shadow-lg ring-4 ${isDarkTheme ? 'ring-[#374151]' : 'ring-white'}`}
               style={{
                 background: `linear-gradient(135deg, ${accent_color}20, ${accent_color}40)`,
               }}
@@ -47,11 +50,11 @@ export function StorefrontHeader({ creator, settings, stats }: StorefrontHeaderP
           )}
 
           {/* Store Name */}
-          <h1 className="mt-4 text-2xl font-bold leading-tight text-gray-900">{store_name}</h1>
+          <h1 className={`mt-4 text-2xl font-bold leading-tight ${themeStyles.headerTitle}`}>{store_name}</h1>
 
           {/* Bio */}
           {bio && (
-            <p className="mt-2 max-w-md text-sm leading-relaxed text-gray-600">{bio}</p>
+            <p className={`mt-2 max-w-md text-sm leading-relaxed ${themeStyles.headerBio}`}>{bio}</p>
           )}
 
           {/* Social Links */}
@@ -62,7 +65,7 @@ export function StorefrontHeader({ creator, settings, stats }: StorefrontHeaderP
                   href={`https://instagram.com/${(instagram_handle || social_links?.instagram || '').replace('@', '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-offset-2 ${themeStyles.chip} ${themeStyles.chipHover} ${themeStyles.chipText}`}
                   style={{ outlineColor: accent_color }}
                   aria-label={`Visit Instagram profile ${instagram_handle || social_links?.instagram}`}
                 >
@@ -76,7 +79,7 @@ export function StorefrontHeader({ creator, settings, stats }: StorefrontHeaderP
                   href={social_links.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-offset-2 ${themeStyles.chip} ${themeStyles.chipHover} ${themeStyles.chipText}`}
                   style={{ outlineColor: accent_color }}
                   aria-label="Visit website"
                 >
@@ -90,7 +93,7 @@ export function StorefrontHeader({ creator, settings, stats }: StorefrontHeaderP
           {/* Trust Badges */}
           {(stats.total_orders > 0 || stats.average_rating > 0) && (
             <div className="mt-4">
-              <TrustBadges stats={stats} />
+              <TrustBadges stats={stats} theme={theme} />
             </div>
           )}
         </div>

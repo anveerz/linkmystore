@@ -133,13 +133,13 @@ export default function OrderDetailPage() {
   }
 
   const handleVerifyUpiPayment = async () => {
-    if (!order || order.payment_method !== 'upi_direct' || isUpiPaymentConfirmed(order)) return
+    if (!order || !['upi_direct', 'upi_manual'].includes(order.payment_method || '') || isUpiPaymentConfirmed(order)) return
 
     if (!confirm('Mark this UPI payment as verified?')) return
 
     setVerifyingPayment(true)
     try {
-      const response = await fetch(`/api/orders/${order.id}/verify-payment`, { method: 'POST' })
+      const response = await fetch(`/api/orders/${order.id}/verify-upi`, { method: 'POST' })
       const data = await response.json()
 
       if (!response.ok) {
@@ -167,7 +167,7 @@ export default function OrderDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E8651A]"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4f7cff]"></div>
       </div>
     )
   }
@@ -263,13 +263,35 @@ export default function OrderDetailPage() {
                 <p className="text-xs text-orange-700 mt-1">
                   Verify payment before shipping this order.
                 </p>
+                <div className="mt-3 space-y-2 rounded-xl border border-orange-200 bg-white/80 p-3">
+                  <div className="flex items-start justify-between gap-3 text-sm">
+                    <span className="text-orange-700">Submitted UTR</span>
+                    <span className="font-mono text-right text-xs text-gray-700">
+                      {order.upi_reference_number || 'No UTR submitted'}
+                    </span>
+                  </div>
+                  {order.payment_screenshot_url ? (
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-orange-700">Payment screenshot</span>
+                      <a
+                        href={order.payment_screenshot_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-[#E8651A] hover:underline"
+                      >
+                        View proof
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
                 <button
                   onClick={handleVerifyUpiPayment}
                   disabled={verifyingPayment}
                   className="btn-primary mt-3 flex items-center gap-2"
                 >
                   <ShieldCheck className="w-4 h-4" />
-                  {verifyingPayment ? 'Verifying...' : 'Mark Payment Verified'}
+                  {verifyingPayment ? 'Verifying...' : 'Confirm This Order'}
                 </button>
               </div>
             )}
@@ -377,7 +399,11 @@ export default function OrderDetailPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Method</span>
                 <span className="font-medium text-gray-700">
-                  {order.payment_method === 'upi_direct' ? 'Direct UPI' : 'Razorpay'}
+                  {order.payment_method === 'pg_razorpay'
+                    ? 'Gateway Checkout (Razorpay)'
+                    : order.payment_method === 'upi_manual' || order.payment_method === 'upi_direct'
+                      ? 'Manual UPI'
+                      : 'Gateway Checkout'}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -385,21 +411,18 @@ export default function OrderDetailPage() {
                 <span className="font-bold">{formatPrice(order.amount)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">
-                  {order.payment_method === 'upi_direct' ? 'Platform Fee' : 'Platform Fee (4%)'}
-                </span>
-                <span className="text-gray-500">{formatPrice(order.platform_fee)}</span>
+                <span className="text-gray-500">Platform fee (V3 own-product is 0)</span>
+                <span className="text-gray-500">{formatPrice(order.platform_fee || 0)}</span>
               </div>
               <div className="h-px bg-gray-100 my-2" />
-              <div className="flex justify-between">
-                <span className="font-medium">Your Earnings</span>
-                <span className="font-bold text-green-600">{formatPrice(order.amount - order.platform_fee)}</span>
-              </div>
+              <p className="text-xs text-gray-500">
+                Settlement is handled by the selected payment rail. Gateway fees are charged by the provider.
+              </p>
               <div className="h-px bg-gray-100 my-2" />
-              {order.razorpay_payment_id && (
+              {(order.gateway_payment_id || order.razorpay_payment_id) && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Payment ID</span>
-                  <span className="font-mono text-gray-400 text-xs">{order.razorpay_payment_id}</span>
+                  <span className="font-mono text-gray-400 text-xs">{order.gateway_payment_id || order.razorpay_payment_id}</span>
                 </div>
               )}
               {order.upi_reference_number && (
@@ -429,7 +452,7 @@ export default function OrderDetailPage() {
                   {order.payment_status}
                 </span>
               </div>
-              {order.payment_method === 'upi_direct' && (
+              {(order.payment_method === 'upi_direct' || order.payment_method === 'upi_manual') && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Verification</span>
                   <span

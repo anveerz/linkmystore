@@ -96,4 +96,50 @@ describe('POST /api/products/affiliate', () => {
     expect(body.success).toBe(true)
     expect(body.product.affiliate_platform).toBe('amazon')
   })
+
+  it('uses seller-reviewed fields when provided', async () => {
+    createClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'u3' } } }) },
+    })
+    detectAffiliatePlatform.mockReturnValue('amazon')
+    fetchProductMetadata.mockResolvedValue(null)
+    injectAffiliateTag.mockReturnValue('https://amazon.in/dp/456?tag=linkmystore-21')
+
+    const db = new SupabaseQueryMock({
+      creators: { selectSingle: [{ data: { id: 'creator_2', store_slug: 'seller' } }] },
+      products: {
+        insertSingle: [
+          {
+            data: {
+              id: 'prod_aff_2',
+              title: 'Reviewed Product',
+              affiliate_platform: 'amazon',
+              affiliate_tagged_url: 'https://amazon.in/dp/456?tag=linkmystore-21',
+            },
+          },
+        ],
+      },
+    })
+    createAdminClient.mockReturnValue(db)
+
+    const response = await post({
+      url: 'https://amazon.in/dp/456',
+      title: 'Reviewed Product',
+      description: 'Reviewed description',
+      image_url: 'https://img.example/reviewed.png',
+      price_in_paisa: 29900,
+    })
+
+    expect(response.status).toBe(200)
+
+    const insertCall = db.calls.find((call) => call.table === 'products' && call.operation === 'insertSingle')
+    expect(insertCall).toBeDefined()
+    expect(insertCall?.payload).toMatchObject({
+      title: 'Reviewed Product',
+      description: 'Reviewed description',
+      price: 29900,
+      images: ['https://img.example/reviewed.png'],
+      is_affiliate: true,
+    })
+  })
 })

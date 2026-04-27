@@ -1,14 +1,27 @@
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import { Truck, Zap, Star, AlertCircle, BookOpen, Clock, Video, Calendar, Play, CheckCircle, Layers, FileText } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getAffiliateDisplayData } from '@/lib/affiliate-display'
+import { getCreatorPlanSnapshot } from '@/lib/plan-gate'
 import EventTracker from '@/components/analytics/EventTracker'
 import ImageGallery from '@/components/storefront/ImageGallery'
 import ProductNav from '@/components/storefront/ProductNav'
 import ProductDetailClient from '@/components/storefront/ProductDetailClient'
-import type { Variant, DigitalSubtype, CourseData, CoachingData, CalendarData, MembershipData, TemplateFile } from '@/types'
+import type { Variant, DigitalSubtype, CourseData, CoachingData, CalendarData, MembershipData, TemplateFile, StoreSettings } from '@/types'
 
-const RESERVED_SLUGS = ['login', 'dashboard', 'onboarding', 'auth', 'api', 'checkout', '_next', 'favicon.ico']
+const RESERVED_SLUGS = [
+  'login',
+  'dashboard',
+  'onboarding',
+  'auth',
+  'api',
+  'checkout',
+  '_next',
+  'favicon.ico',
+  'robots.txt',
+  'sitemap.xml',
+  '.well-known',
+]
 
 async function getProductData(slug: string, productId: string) {
   const supabase = createAdminClient()
@@ -22,11 +35,17 @@ async function getProductData(slug: string, productId: string) {
 
   if (!creator) return null
 
+  const planSnapshot = await getCreatorPlanSnapshot(creator.id)
+  const effectiveCreator = {
+    ...creator,
+    plan: planSnapshot.effectivePlan,
+  }
+
   const { data: product } = await supabase
     .from('products')
     .select('*')
     .eq('id', productId)
-    .eq('creator_id', creator.id)
+    .eq('creator_id', effectiveCreator.id)
     .eq('is_active', true)
     .single()
 
@@ -35,7 +54,7 @@ async function getProductData(slug: string, productId: string) {
   const { data: settings } = await supabase
     .from('store_settings')
     .select('*')
-    .eq('creator_id', creator.id)
+    .eq('creator_id', effectiveCreator.id)
     .single()
 
   const { data: reviews } = await supabase
@@ -45,7 +64,29 @@ async function getProductData(slug: string, productId: string) {
     .order('created_at', { ascending: false })
     .limit(20)
 
-  return { creator, product, settings, reviews: reviews || [] }
+  const rawSettings = (settings || {
+    theme: 'default',
+    accent_color: '#E8651A',
+    social_links: {},
+    announcement_text: null,
+    show_branding: true,
+    seo_enabled: false,
+  }) as StoreSettings
+
+  const normalizedSettings: StoreSettings = effectiveCreator.plan === 'pro'
+    ? {
+        ...rawSettings,
+        show_branding: rawSettings.show_branding ?? false,
+        seo_enabled: rawSettings.seo_enabled ?? true,
+      }
+    : {
+        ...rawSettings,
+        theme: 'default',
+        show_branding: true,
+        seo_enabled: false,
+      }
+
+  return { creator: effectiveCreator, product, settings: normalizedSettings, reviews: reviews || [] }
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; productId: string }> }) {
@@ -54,21 +95,36 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   if (!data) return { title: 'Product Not Found' }
 
+  const seoEnabled = data.creator.plan === 'pro' && data.settings?.seo_enabled === true
   const { product, creator } = data
   const isLeadMagnet = product.is_lead_magnet || product.digital_subtype === 'lead_magnet'
-  const priceDisplay = isLeadMagnet ? 'Free' : '₹' + (product.price / 100).toLocaleString('en-IN')
+  const priceDisplay = isLeadMagnet ? 'Free' : `Rs ${(product.price / 100).toLocaleString('en-IN')}`
+
+  if (!seoEnabled) {
+    return {
+      title: `${product.title} | ${creator.store_name}`,
+      description: `Product from ${creator.store_name} on LinkMyStore`,
+      robots: {
+        index: false,
+        follow: false,
+      },
+    }
+  }
 
   return {
-    title: `${product.title} — ${priceDisplay} | ${creator.store_name}`,
+    title: `${product.title} - ${priceDisplay} | ${creator.store_name}`,
     description: product.description || `Buy ${product.title} from ${creator.store_name}`,
+    robots: {
+      index: true,
+      follow: true,
+    },
     openGraph: {
-      title: `${product.title} — ${priceDisplay}`,
+      title: `${product.title} - ${priceDisplay}`,
       description: product.description || `Available on ${creator.store_name}`,
       images: product.images?.[0] ? [product.images[0]] : [],
     },
   }
 }
-
 function formatPrice(paisa: number) {
   return '₹' + (paisa / 100).toLocaleString('en-IN')
 }
@@ -199,30 +255,53 @@ const PLATFORM_LABELS: Record<string, string> = {
   phone: '📞 Phone Call',
 }
 
-function CoachingSection({ coachingData, accentColor }: { coachingData: CoachingData; accentColor: string }) {
-  const activeDays = [...new Set((coachingData.availability || []).map((s) => s.day_of_week))].sort()
+function CoachingSection({
+  coachingData,
+  accentColor,
+  productPrice,
+}: {
+  coachingData: CoachingData
+  accentColor: string
+  productPrice: number
+}) {
+  const activeDays = [...new Set((coachingData.availability || []).map((slot) => slot.day_of_week))].sort()
+
+  const durationPackages =
+    Array.isArray(coachingData.duration_options) && coachingData.duration_options.length > 0
+      ? coachingData.duration_options
+      : [
+          {
+            duration_minutes: Number(coachingData.duration_minutes || 30),
+            price: Number(productPrice || 0),
+            label: 'Session',
+          },
+        ]
 
   return (
     <div className="px-4 pb-4">
       <div className="border-t border-gray-100 pt-5">
         <h2 className="text-base font-bold text-[#0F172A] mb-4 flex items-center gap-2">
           <Video className="w-4 h-4" style={{ color: accentColor }} />
-          Session Details
+          Counselling Details
         </h2>
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="bg-emerald-50 rounded-xl p-3">
-            <div className="text-xs font-semibold text-emerald-600 mb-1">Duration</div>
-            <div className="text-lg font-bold text-emerald-700">{coachingData.duration_minutes} min</div>
-          </div>
-          <div className="bg-emerald-50 rounded-xl p-3">
-            <div className="text-xs font-semibold text-emerald-600 mb-1">Session Type</div>
-            <div className="text-sm font-bold text-emerald-700">
-              {coachingData.session_type === '1on1'
-                ? '👤 1-on-1'
-                : `👥 Group (max ${coachingData.max_participants || '?'})`}
+
+        <div className="mb-4 space-y-2">
+          {durationPackages.map((option, index) => (
+            <div
+              key={`${option.duration_minutes}-${option.price}-${index}`}
+              className="flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2.5"
+            >
+              <div>
+                <p className="text-sm font-semibold text-emerald-700">
+                  {option.label || `${option.duration_minutes} min session`}
+                </p>
+                <p className="text-xs text-emerald-600">{option.duration_minutes} minutes</p>
+              </div>
+              <p className="text-sm font-bold text-emerald-700">{formatPrice(option.price)}</p>
             </div>
-          </div>
+          ))}
         </div>
+
         {coachingData.meeting_platform && (
           <div className="bg-gray-50 rounded-xl px-3 py-2.5 mb-3 flex items-center gap-2">
             <span className="text-sm text-gray-700 font-medium">
@@ -230,15 +309,16 @@ function CoachingSection({ coachingData, accentColor }: { coachingData: Coaching
             </span>
           </div>
         )}
+
         {activeDays.length > 0 && (
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Available Days</p>
             <div className="flex flex-wrap gap-1.5">
-              {DAY_NAMES.map((day, idx) => (
+              {DAY_NAMES.map((day, index) => (
                 <span
-                  key={idx}
+                  key={index}
                   className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                    activeDays.includes(idx) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400'
+                    activeDays.includes(index) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400'
                   }`}
                 >
                   {day}
@@ -247,11 +327,13 @@ function CoachingSection({ coachingData, accentColor }: { coachingData: Coaching
             </div>
           </div>
         )}
+
         {coachingData.advance_booking_days > 0 && (
-          <p className="text-xs text-gray-400 mt-3">📅 Book up to {coachingData.advance_booking_days} days in advance</p>
+          <p className="text-xs text-gray-400 mt-3">Book up to {coachingData.advance_booking_days} days in advance</p>
         )}
+
         {coachingData.min_notice_hours > 0 && (
-          <p className="text-xs text-gray-400 mt-1">⏰ Requires {coachingData.min_notice_hours}h advance notice</p>
+          <p className="text-xs text-gray-400 mt-1">Requires {coachingData.min_notice_hours}h advance notice</p>
         )}
       </div>
     </div>
@@ -447,20 +529,10 @@ export default async function ProductPage({
 
   const data = await getProductData(slug, productId)
 
-  if (!data) {
-    return (
-      <div className="max-w-lg mx-auto min-h-screen flex items-center justify-center px-4">
-        <div className="text-center">
-          <div className="text-6xl mb-4">📦</div>
-          <h1 className="text-xl font-bold text-[#0F172A] mb-2">Product not found</h1>
-          <p className="text-gray-500 text-sm mb-6">This product doesn&apos;t exist or is no longer available</p>
-          <Link href={`/${slug}`} className="btn-primary">Back to store</Link>
-        </div>
-      </div>
-    )
-  }
+  if (!data) notFound()
 
   const { creator, product, settings, reviews } = data
+  const storefrontTheme = settings?.theme || 'default'
   const accentColor = settings?.accent_color || '#E8651A'
   const productUrl = `https://linkmystore.in/${creator.store_slug}/${product.id}`
   const variants = (product.variants || []) as Variant[]
@@ -473,8 +545,20 @@ export default async function ProductPage({
   const digitalSubtype = product.digital_subtype as DigitalSubtype | undefined
   const isLeadMagnet = !!(product.is_lead_magnet || digitalSubtype === 'lead_magnet')
   const isAffiliate = Boolean(product.is_affiliate)
+  const isCreatorDeal = product.type === 'physical' && product.physical_subtype === 'creator_deal'
   const affiliatePlatform = (product.affiliate_platform as string | undefined) || null
   const affiliateTaggedUrl = (product.affiliate_tagged_url as string | undefined) || null
+  const affiliateDisplayData = getAffiliateDisplayData(product.affiliate_product_data)
+  const dealData = (product.deal_data as {
+    external_url?: string
+    coupon_code?: string
+    coupon_note?: string
+    deal_label?: string
+  } | null) || null
+  const creatorDealLabel = dealData?.deal_label || 'Must-Buy'
+  const creatorDealCoupon = dealData?.coupon_code || null
+  const creatorDealCouponNote = dealData?.coupon_note || null
+  const creatorDealExternalUrl = dealData?.external_url || null
   const subtypeBadge = digitalSubtype ? SUBTYPE_BADGE[digitalSubtype] : null
 
   const courseData = product.course_data as CourseData | null
@@ -498,10 +582,11 @@ export default async function ProductPage({
         storeName={creator.store_name}
         productTitle={product.title}
         productUrl={productUrl}
+        theme={storefrontTheme}
       />
 
       {/* Image Gallery */}
-      <ImageGallery images={product.images || []} />
+      <ImageGallery images={product.images || []} theme={storefrontTheme} />
 
       {/* Product Info */}
       <div className="px-4 pt-4 pb-4">
@@ -549,9 +634,41 @@ export default async function ProductPage({
           )}
         </div>
         {isAffiliate && (
-          <p className="text-xs text-gray-500 mt-1">
-            This is an affiliate listing. You will be redirected to {affiliatePlatform || 'partner platform'} for purchase.
-          </p>
+          <>
+            <p className="text-xs text-gray-500 mt-1">
+              This is an affiliate listing. You will be redirected to {affiliatePlatform || 'partner platform'} for purchase.
+            </p>
+            {affiliateDisplayData.promoLabel && (
+              <span className="inline-flex mt-2 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                {affiliateDisplayData.promoLabel}
+              </span>
+            )}
+            {affiliateDisplayData.couponCode && (
+              <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Use Code</p>
+                <p className="text-sm font-bold text-emerald-900">{affiliateDisplayData.couponCode}</p>
+                {affiliateDisplayData.couponNote && (
+                  <p className="mt-0.5 text-xs text-emerald-700">{affiliateDisplayData.couponNote}</p>
+                )}
+              </div>
+            )}
+          </>
+        )}
+        {isCreatorDeal && (
+          <>
+            <span className="inline-flex mt-2 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
+              {creatorDealLabel}
+            </span>
+            {creatorDealCoupon && (
+              <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">Use Code</p>
+                <p className="text-sm font-bold text-amber-950">{creatorDealCoupon}</p>
+                {creatorDealCouponNote && (
+                  <p className="mt-0.5 text-xs text-amber-700">{creatorDealCouponNote}</p>
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {/* Stock alerts (only for physical / non-digital) */}
@@ -572,7 +689,12 @@ export default async function ProductPage({
         {/* Product Type Indicator — only when no digital subtype badge */}
         {!digitalSubtype && (
           <div className="flex items-center gap-1.5 mt-2">
-            {product.type === 'physical' ? (
+            {isCreatorDeal ? (
+              <>
+                <Truck className="w-3.5 h-3.5 text-gray-400" />
+                <span className="text-xs text-gray-500">External deal purchase with coupon support</span>
+              </>
+            ) : product.type === 'physical' ? (
               <>
                 <Truck className="w-3.5 h-3.5 text-gray-400" />
                 <span className="text-xs text-gray-500">Physical Product — Shipping required</span>
@@ -607,7 +729,7 @@ export default async function ProductPage({
 
       {/* Coaching Session Details */}
       {digitalSubtype === 'coaching' && coachingData && (
-        <CoachingSection coachingData={coachingData} accentColor={accentColor} />
+        <CoachingSection coachingData={coachingData} accentColor={accentColor} productPrice={product.price} />
       )}
 
       {/* Calendar Booking Details */}
@@ -638,6 +760,10 @@ export default async function ProductPage({
         isAffiliate={isAffiliate}
         affiliatePlatform={affiliatePlatform}
         affiliateTaggedUrl={affiliateTaggedUrl}
+        isCreatorDeal={isCreatorDeal}
+        dealExternalUrl={creatorDealExternalUrl}
+        dealLabel={creatorDealLabel}
+        theme={storefrontTheme}
       />
 
       {/* ── Customer Reviews ── */}
